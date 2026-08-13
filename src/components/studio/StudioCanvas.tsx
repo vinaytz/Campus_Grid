@@ -8,17 +8,23 @@ import type { LiteEntry, LiteSlot, Verdict } from "@/lib/scheduler/validate";
 const ROW = 62;
 
 function DropCell({
-  day, order, verdict, active, span,
-}: { day: number; order: number; verdict?: Verdict; active: boolean; span: number }) {
+  day, order, col, row, verdict, active, span,
+}: {
+  day: number; order: number; col: number; row: number;
+  verdict?: Verdict; active: boolean; span: number;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: `cell:${day}:${order}` });
   const allowed = verdict?.ok === true;
 
   return (
     <div
       ref={setNodeRef}
+      style={{ gridColumn: col, gridRow: row }}
       title={verdict && !verdict.ok ? verdict.reason : undefined}
       className={cn(
-        "relative border-b border-r border-rule/70 transition-colors duration-100",
+        // h-full is load-bearing: without it this div collapses to 0px and
+        // dnd-kit can never register a hit on it.
+        "relative h-full min-h-[1px] border-b border-r border-rule/70 transition-colors duration-100",
         active && !allowed && "hatch",
         active && allowed && "bg-moss-soft/40",
         isOver && allowed && "bg-moss-soft ring-1 ring-inset ring-moss",
@@ -42,10 +48,11 @@ function DropCell({
 }
 
 function PlacedBlock({
-  entry, rowIndex, dayIndex, selected, onSelect, lens,
+  entry, rowIndex, dayIndex, selected, onSelect, onContext, lens,
 }: {
   entry: LiteEntry; rowIndex: number; dayIndex: number;
   selected: boolean; onSelect: () => void; lens: "section" | "faculty" | "room";
+  onContext: (e: LiteEntry, x: number, y: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `entry:${entry._id}`,
@@ -60,6 +67,7 @@ function PlacedBlock({
         gridRow: `${rowIndex + 1} / span ${entry.duration}`,
       }}
       className="relative z-10 p-[3px]"
+      onContextMenu={(e) => { e.preventDefault(); onSelect(); onContext(entry, e.clientX, e.clientY); }}
     >
       <SessionBlock
         entry={entry}
@@ -82,7 +90,7 @@ function PlacedBlock({
  */
 export function StudioCanvas({
   slots, entries, days, dropVerdicts, dragActive, dragSpan,
-  selectedId, onSelect, lens,
+  selectedId, onSelect, onContext, lens,
 }: {
   slots: LiteSlot[];
   entries: LiteEntry[];
@@ -92,6 +100,7 @@ export function StudioCanvas({
   dragSpan: number;
   selectedId: string | null;
   onSelect: (e: LiteEntry | null) => void;
+  onContext: (e: LiteEntry, x: number, y: number) => void;
   lens: "section" | "faculty" | "room";
 }) {
   const ordered = [...slots].sort((a, b) => a.order - b.order);
@@ -153,15 +162,14 @@ export function StudioCanvas({
               </div>
             ) : (
               days.map((day) => (
-                <div key={`c${day}-${slot.order}`}
-                  style={{ gridColumn: days.indexOf(day) + 2, gridRow: rowIndex + 1 }}>
-                  <DropCell
-                    day={day} order={slot.order}
-                    verdict={dropVerdicts?.get(`${day}:${slot.order}`)}
-                    active={dragActive}
-                    span={dragSpan}
-                  />
-                </div>
+                <DropCell
+                  key={`c${day}-${slot.order}`}
+                  day={day} order={slot.order}
+                  col={days.indexOf(day) + 2} row={rowIndex + 1}
+                  verdict={dropVerdicts?.get(`${day}:${slot.order}`)}
+                  active={dragActive}
+                  span={dragSpan}
+                />
               ))
             )
           )}
@@ -175,6 +183,7 @@ export function StudioCanvas({
                 key={e._id} entry={e} rowIndex={rowIndex} dayIndex={dayIndex}
                 selected={selectedId === e._id}
                 onSelect={() => onSelect(e)}
+                onContext={onContext}
                 lens={lens}
               />
             );

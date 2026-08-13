@@ -17,6 +17,7 @@ import { StudioCanvas } from "./StudioCanvas";
 import { SessionTray, type PendingSession } from "./SessionTray";
 import { SessionBlock } from "./SessionBlock";
 import { Inspector } from "./Inspector";
+import { ContextMenu, type ContextTarget } from "./ContextMenu";
 import { dropMap, availableRooms, type LiteEntry, type LiteRoom, type LiteSlot, type Rules, type Verdict } from "@/lib/scheduler/validate";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ export function Studio({
   const [focus, setFocus] = useState<string>("");
   const [save, setSave] = useState<SaveState>("idle");
   const [filling, setFilling] = useState(false);
+  const [menu, setMenu] = useState<ContextTarget | null>(null);
 
   const [drag, setDrag] = useState<
     | { kind: "entry"; entry: LiteEntry }
@@ -120,11 +122,26 @@ export function Studio({
         e.preventDefault();
         e.shiftKey ? redo() : undo();
       }
-      if (e.key === "Escape") setSelectedId(null);
+      if (e.key === "Escape") { setSelectedId(null); setMenu(null); }
+      const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(
+        (e.target as HTMLElement)?.tagName
+      );
+      if (!typing && (e.key === "Delete" || e.key === "Backspace") && selectedId) {
+        e.preventDefault();
+        setEntries((cur) => {
+          const next = cur.filter((x) => x._id !== selectedId);
+          setPast((pp) => [...pp.slice(-49), cur]);
+          setFuture([]);
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = setTimeout(() => void persist(next), 500);
+          return next;
+        });
+        setSelectedId(null);
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  }, [undo, redo, selectedId, persist]);
 
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
@@ -264,6 +281,16 @@ export function Studio({
     (created as any).assignment = p.assignmentId;
     commit([...entries, created]);
     setSelectedId(created._id);
+
+    // Don't let a filter swallow the thing that was just placed.
+    const hidden =
+      (lens === "section" && focus && focus !== p.sectionId) ||
+      (lens === "faculty" && focus && focus !== p.facultyId) ||
+      (lens === "room" && focus && focus !== free.room._id);
+    if (hidden) {
+      setFocus("");
+      push(`Placed ${p.subjectCode}. Cleared the filter so you can see it.`);
+    }
   }
 
   /* ── Actions ──────────────────────────────────────────────────────── */
@@ -293,7 +320,12 @@ export function Studio({
   }
 
   function clearUnpinned() {
-    if (!confirm("Take every unpinned session off the canvas?")) return;
+    const removable = entries.filter((e) => !e.locked).length;
+    if (removable === 0) { push("Nothing to clear — every session is pinned."); return; }
+    if (!confirm(
+      `Take ${removable} unpinned session${removable === 1 ? "" : "s"} off the canvas?\n\n` +
+      `${entries.length - removable} pinned session(s) will stay. You can undo this with Cmd+Z.`
+    )) return;
     commit(entries.filter((e) => e.locked));
     setSelectedId(null);
   }
@@ -365,8 +397,10 @@ export function Studio({
 
             <SaveBadge state={save} />
 
-            <Button variant="ghost" size="sm" onClick={clearUnpinned} aria-label="Clear unpinned">
+            <Button variant="ghost" size="sm" onClick={clearUnpinned}
+              title="Remove every unpinned session from the canvas">
               <Trash2 className="size-3.5" />
+              <span className="hidden sm:inline">Clear</span>
             </Button>
             <Button size="sm" onClick={autofill} loading={filling} disabled={pendingCount === 0}>
               <Wand2 className="size-3.5" />
@@ -392,11 +426,14 @@ export function Studio({
             dragSpan={candidate?.duration ?? 1}
             selectedId={selectedId}
             onSelect={(e) => setSelectedId(e?._id ?? null)}
+            onContext={(e, x, y) => setMenu({ entry: e, x, y })}
             lens={lens}
           />
           <p className="mt-2 px-1 text-micro text-muted">
-            Drag a session from the tray onto the sheet, or move one that is already placed.
-            Cells that cannot take it are hatched. <kbd className="font-mono">⌘Z</kbd> undoes.
+            Drag from the tray onto the sheet, or move a placed session. Hatched cells
+            can&apos;t take it — hover one to see why. Right-click a session for room, pin
+            and remove. <kbd className="font-mono">Del</kbd> removes the selected one,
+            <kbd className="ml-1 font-mono">⌘Z</kbd> undoes.
           </p>
         </div>
 
@@ -419,6 +456,26 @@ export function Studio({
           />
         </aside>
       </div>
+
+      <ContextMenu
+        target={menu}
+        rooms={rooms}
+        entries={entries}
+        onClose={() => setMenu(null)}
+        onChangeRoom={(roomId) => {
+          const room = rooms.find((r) => r._id === roomId);
+          if (room && menu) commit(entries.map((x) => (x._id === menu.entry._id ? { ...x, room } : x)));
+        }}
+        onToggleLock={() => {
+          if (!menu) return;
+          commit(entries.map((x) => (x._id === menu.entry._id ? { ...x, locked: !x.locked } : x)));
+        }}
+        onRemove={() => {
+          if (!menu) return;
+          commit(entries.filter((x) => x._id !== menu.entry._id));
+          setSelectedId(null);
+        }}
+      />
 
       {/* The block follows the cursor, tilted slightly, so it reads as lifted */}
       <DragOverlay dropAnimation={{ duration: 160, easing: "cubic-bezier(.2,.9,.3,1)" }}>

@@ -64,9 +64,11 @@ async function main() {
     { code: "103", block: "A", capacity: 45, type: "LECTURE" },
     { code: "201", block: "B", capacity: 60, type: "LECTURE" },
     { code: "202", block: "B", capacity: 60, type: "LECTURE" },
-    { code: "301", block: "B", capacity: 35, type: "LAB" },
-    { code: "302", block: "B", capacity: 35, type: "LAB" },
-    { code: "303", block: "C", capacity: 30, type: "LAB" },
+    // Lab capacity must cover the largest section that has a lab, or those
+    // sessions can never be placed. Sections here run 44-62 students.
+    { code: "301", block: "B", capacity: 65, type: "LAB" },
+    { code: "302", block: "B", capacity: 60, type: "LAB" },
+    { code: "303", block: "C", capacity: 50, type: "LAB" },
     { code: "401", block: "C", capacity: 120, type: "AUDITORIUM" },
   ]);
 

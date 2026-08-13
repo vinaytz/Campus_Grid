@@ -213,4 +213,3 @@ Deliberate Phase 2, in rough priority order:
 4. **Multi-role auth** — the `COORDINATOR` / `VIEWER` roles exist in the model
    but every route currently checks only for a valid session.
 5. **Audit log** of who changed what.
-# Campus_Grid
