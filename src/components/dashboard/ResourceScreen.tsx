@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { api, useResource } from "@/hooks/useApi";
 import { Button } from "@/components/ui/Button";
-import { Input, Select, Toggle } from "@/components/ui/Field";
+import { Input, Select, Toggle, TagInput, MultiSelect, UnavailabilityInput } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Table, TH, TD, EmptyState } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
@@ -13,13 +13,17 @@ import type { ReactNode } from "react";
 export type FieldDef = {
   name: string;
   label: string;
-  type?: "text" | "number" | "time" | "select" | "email" | "toggle";
+  type?: "text" | "number" | "time" | "date" | "select" | "email" | "toggle" | "tags" | "multiselect" | "unavailability";
   options?: { value: string; label: string }[];
+  /** tags only: one-click suggestions. The field still accepts anything typed. */
+  suggestions?: readonly string[];
   hint?: string;
   placeholder?: string;
   required?: boolean;
-  defaultValue?: string | number | boolean;
+  defaultValue?: string | number | boolean | string[];
   full?: boolean;
+  /** Hide this field unless the form's current values satisfy the predicate. */
+  showIf?: (values: Record<string, any>) => boolean;
 };
 
 export type ColumnDef<T> = {
@@ -46,6 +50,7 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   const { push } = useToast();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Partial<T> | null>(null);
+  const [deleting, setDeleting] = useState<T | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -69,7 +74,8 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   function openNew() {
     const blank: Record<string, unknown> = {};
     for (const f of fields) {
-      blank[f.name] = f.defaultValue ?? (f.type === "toggle" ? true : "");
+      blank[f.name] = f.defaultValue
+        ?? (f.type === "toggle" ? true : f.type === "tags" || f.type === "multiselect" ? [] : "");
     }
     setFormError(null);
     setEditing(blank as Partial<T>);
@@ -79,7 +85,16 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
     const next: Record<string, unknown> = {};
     for (const f of fields) {
       const v = (row as any)[f.name];
-      next[f.name] = v && typeof v === "object" && "_id" in v ? v._id : v ?? "";
+      if (f.type === "tags") {
+        next[f.name] = Array.isArray(v) ? v : [];
+      } else if (f.type === "multiselect") {
+        // Populated refs arrive as objects; the form works in ids.
+        next[f.name] = Array.isArray(v)
+          ? v.map((x: any) => (x && typeof x === "object" && "_id" in x ? String(x._id) : String(x)))
+          : [];
+      } else {
+        next[f.name] = v && typeof v === "object" && "_id" in v ? v._id : v ?? "";
+      }
     }
     setFormError(null);
     setEditing({ ...(next as Partial<T>), _id: row._id });
@@ -109,10 +124,10 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   }
 
   async function remove(row: T) {
-    if (!confirm(`Delete this ${config.singular.toLowerCase()}? This can't be undone.`)) return;
     try {
       await api(`/api/admin/${config.resource}/${row._id}`, { method: "DELETE" });
       push(`${config.singular} deleted.`);
+      setDeleting(null);
       await reload();
     } catch (e) {
       push((e as Error).message, "error");
@@ -169,7 +184,7 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
                 <TD className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button size="xs" variant="ghost" onClick={() => openEdit(row)}>Edit</Button>
-                    <Button size="xs" variant="ghost" className="hover:text-claret" onClick={() => remove(row)}>
+                    <Button size="xs" variant="ghost" className="hover:text-claret" onClick={() => setDeleting(row)}>
                       Delete
                     </Button>
                   </div>
@@ -193,7 +208,10 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {fields.map((f) => {
-            const value = (editing as any)?.[f.name];
+            const values = (editing ?? {}) as Record<string, any>;
+            if (f.showIf && !f.showIf(values)) return null;
+
+            const value = values[f.name];
             const set = (v: unknown) => setEditing((p) => ({ ...(p as object), [f.name]: v }) as Partial<T>);
             const wrap = f.full ? "sm:col-span-2" : "";
 
@@ -202,6 +220,31 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
                 <div key={f.name} className={wrap}>
                   <Toggle label={f.label} description={f.hint} checked={!!value} onChange={set} />
                 </div>
+              );
+            }
+            if (f.type === "tags") {
+              return (
+                <div key={f.name} className={wrap}>
+                  <TagInput label={f.label} hint={f.hint} suggestions={f.suggestions}
+                    placeholder={f.placeholder}
+                    value={Array.isArray(value) ? value : []} onChange={set} />
+                </div>
+              );
+            }
+            if (f.type === "multiselect") {
+              return (
+                <div key={f.name} className={wrap}>
+                  <MultiSelect label={f.label} value={Array.isArray(value) ? value : []}
+                    onChange={set} options={f.options ?? []} emptyHint={f.placeholder} />
+                </div>
+              );
+            }
+            if (f.type === "unavailability") {
+              return (
+                <UnavailabilityInput key={f.name} label={f.label}
+                  value={Array.isArray(value) ? value as { day: number; slotOrder: number }[] : []}
+                  onChange={set}
+                  slots={f.options ?? []} />
               );
             }
             if (f.type === "select") {
@@ -221,7 +264,7 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
                   label={f.label} hint={f.hint} type={f.type ?? "text"}
                   placeholder={f.placeholder} required={f.required}
                   value={value ?? ""}
-                  onChange={(e) => set(f.type === "number" ? e.target.value : e.target.value)}
+                  onChange={(e) => set(e.target.value)}
                 />
               </div>
             );
@@ -232,6 +275,14 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
             {formError}
           </p>
         )}
+      </Modal>
+      <Modal open={!!deleting} onClose={() => setDeleting(null)}
+        title={`Delete ${config.singular.toLowerCase()}?`}
+        description="This cannot be undone. Records still used by assignments will be protected.">
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
+          <Button variant="primary" onClick={() => deleting && remove(deleting)}>Delete</Button>
+        </div>
       </Modal>
     </>
   );

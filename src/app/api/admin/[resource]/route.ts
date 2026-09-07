@@ -1,7 +1,8 @@
 import { connectAndRegister } from "@/lib/db";
 import { getResource } from "@/lib/resources";
 import { requireAdmin } from "@/lib/auth";
-import { ok, handleError, parseBody } from "@/lib/api";
+import { ok, fail, handleError, parseBody } from "@/lib/api";
+import TimeSlot from "@/models/TimeSlot";
 
 type Ctx = { params: Promise<{ resource: string }> };
 
@@ -37,6 +38,17 @@ export async function POST(req: Request, { params }: Ctx) {
     const def = getResource(resource);
 
     const body = await parseBody(req, def.schema);
+    if (resource === "slots") {
+      const existing = await TimeSlot.find().lean();
+      const start = Number(body.start.replace(":", ""));
+      const end = Number(body.end.replace(":", ""));
+      const overlap = existing.find((slot) => {
+        const a = Number(slot.start.replace(":", ""));
+        const b = Number(slot.end.replace(":", ""));
+        return start < b && end > a;
+      });
+      if (overlap) return fail(`Period overlaps with ${overlap.start}–${overlap.end}.`, 409);
+    }
     const created = await def.model.create(body);
     return ok(created.toObject(), 201);
   } catch (e) {

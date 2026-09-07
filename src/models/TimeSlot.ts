@@ -27,7 +27,5 @@ const TimeSlotSchema = new Schema<ITimeSlot>(
   { timestamps: true }
 );
 
-TimeSlotSchema.index({ order: 1 });
-
 const TimeSlotModel = (models.TimeSlot as Model<ITimeSlot>) || model<ITimeSlot>("TimeSlot", TimeSlotSchema);
 export default TimeSlotModel;

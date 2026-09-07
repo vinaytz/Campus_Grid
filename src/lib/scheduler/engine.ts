@@ -1,6 +1,8 @@
 import type {
-  Placement, Session, SolverInput, SolverResult, RoomRef, SlotRef,
+  Placement, Session, SolverInput, SolverResult, RoomRef, SlotRef, SectionRef,
 } from "./types";
+import { eligibleRoomsFor, describeRequirement } from "./rooms";
+import { minutesOf, slotsInWindow } from "./time";
 
 /** Deterministic PRNG so a given seed always reproduces the same timetable. */
 function mulberry32(a: number) {
@@ -27,6 +29,8 @@ class Ledger {
   facultyWeekLoad = new Map<string, number>();
   /** subject+section seen on a day — used to spread a course across the week. */
   subjectDay = new Map<string, number>();
+  /** assignment seen on a day — enforces MAX_SESSIONS_PER_ASSIGNMENT_PER_DAY. */
+  assignmentDay = new Map<string, number>();
 
   private set(m: Map<string, Set<string>>, id: string) {
     let s = m.get(id);
@@ -43,7 +47,7 @@ class Ledger {
     return orders.every((o) => !s.has(k(day, o)));
   }
 
-  occupy(s: Session, p: Placement, orders: number[], subjectId: string) {
+  occupy(s: Session, p: Placement, orders: number[]) {
     for (const o of orders) {
       this.set(this.section, s.sectionId).add(k(p.day, o));
       this.set(this.faculty, s.facultyId).add(k(p.day, o));
@@ -52,10 +56,11 @@ class Ledger {
     this.bump(this.sectionDayLoad, `${s.sectionId}:${p.day}`, orders.length);
     this.bump(this.facultyDayLoad, `${s.facultyId}:${p.day}`, orders.length);
     this.bump(this.facultyWeekLoad, s.facultyId, orders.length);
-    this.bump(this.subjectDay, `${subjectId}:${s.sectionId}:${p.day}`, 1);
+    this.bump(this.subjectDay, `${s.subjectId}:${s.sectionId}:${p.day}`, 1);
+    if (s.assignmentId) this.bump(this.assignmentDay, `${s.assignmentId}:${p.day}`, 1);
   }
 
-  release(s: Session, p: Placement, orders: number[], subjectId: string) {
+  release(s: Session, p: Placement, orders: number[]) {
     for (const o of orders) {
       this.section.get(s.sectionId)?.delete(k(p.day, o));
       this.faculty.get(s.facultyId)?.delete(k(p.day, o));
@@ -64,46 +69,57 @@ class Ledger {
     this.bump(this.sectionDayLoad, `${s.sectionId}:${p.day}`, -orders.length);
     this.bump(this.facultyDayLoad, `${s.facultyId}:${p.day}`, -orders.length);
     this.bump(this.facultyWeekLoad, s.facultyId, -orders.length);
-    this.bump(this.subjectDay, `${subjectId}:${s.sectionId}:${p.day}`, -1);
+    this.bump(this.subjectDay, `${s.subjectId}:${s.sectionId}:${p.day}`, -1);
+    if (s.assignmentId) this.bump(this.assignmentDay, `${s.assignmentId}:${p.day}`, -1);
   }
 
   consecutiveFor(facultyId: string, day: number, orders: number[], allOrders: number[]) {
     const busy = this.faculty.get(facultyId) ?? new Set();
-    const taken = new Set(orders.map(String));
+    const taken = new Set(orders);
     let run = 0, best = 0;
     for (const o of allOrders) {
-      const isBusy = busy.has(k(day, o)) || taken.has(String(o));
+      const isBusy = busy.has(k(day, o)) || taken.has(o);
       run = isBusy ? run + 1 : 0;
       best = Math.max(best, run);
     }
     return best;
   }
+
+  /** Free slots the section still has inside a given set of orders, on a day. */
+  freeWithin(sectionId: string, day: number, orders: number[], alsoTaken: number[] = []) {
+    const busy = this.section.get(sectionId) ?? new Set();
+    const extra = new Set(alsoTaken);
+    return orders.filter((o) => !busy.has(k(day, o)) && !extra.has(o)).length;
+  }
 }
 
-/** Contiguous windows of `duration` slots that don't cross a break. */
-function buildWindows(slots: SlotRef[], allowAcrossBreak: boolean) {
+/**
+ * Contiguous windows of `duration` teachable slots.
+ *
+ * Two slots are contiguous only when one ends exactly where the next begins. A
+ * clock gap between periods is a real break, so a 3-hour lab may never span it
+ * — that holds regardless of `allowAcrossBreak`, which governs only explicit
+ * BREAK-kind periods (lunch, assembly).
+ */
+export function buildWindows(slots: SlotRef[], allowAcrossBreak: boolean) {
+  const ordered = [...slots].sort((a, b) => a.order - b.order);
   const byDuration = new Map<number, number[][]>();
+
   for (const duration of [1, 2, 3]) {
     const windows: number[][] = [];
-    for (let i = 0; i + duration <= slots.length; i++) {
-      const span = slots.slice(i, i + duration);
-      const teachable = span.filter((s) => s.kind === "CLASS");
-      if (teachable.length < duration && !allowAcrossBreak) continue;
-      if (span.some((s) => s.kind === "BREAK") && !allowAcrossBreak) continue;
+    outer:
+    for (let i = 0; i + duration <= ordered.length; i++) {
+      const span = ordered.slice(i, i + duration);
       if (span[0].kind === "BREAK") continue;
+      for (let j = 0; j < span.length; j++) {
+        if (span[j].kind === "BREAK" && !allowAcrossBreak) continue outer;
+        if (j > 0 && minutesOf(span[j - 1].end) !== minutesOf(span[j].start)) continue outer;
+      }
       windows.push(span.map((s) => s.order));
     }
     byDuration.set(duration, windows);
   }
   return byDuration;
-}
-
-function roomFits(room: RoomRef, s: Session, strength: number) {
-  if (s.fixedRoom) return room.id === s.fixedRoom;
-  if (room.capacity < strength) return false;
-  if (s.requiredRoomType) return room.type === s.requiredRoomType;
-  if (s.kind === "LAB") return room.type === "LAB";
-  return room.type !== "LAB";
 }
 
 export function solve(input: SolverInput): SolverResult {
@@ -113,20 +129,33 @@ export function solve(input: SolverInput): SolverResult {
   const slots = [...input.slots].sort((a, b) => a.order - b.order);
   const classOrders = slots.filter((s) => s.kind === "CLASS").map((s) => s.order);
   const windows = buildWindows(slots, input.rules.allowSessionsAcrossBreak);
+  const afternoonOrders = slotsInWindow(
+    slots, input.rules.afternoonWindowStart, input.rules.afternoonWindowEnd
+  );
 
   const sectionById = new Map(input.sections.map((s) => [s.id, s]));
   const facultyById = new Map(input.faculty.map((f) => [f.id, f]));
-  const subjectOf = new Map(input.sessions.map((s) => [s.key, s.subjectId]));
 
   let ledger = new Ledger();
 
-  /** Pinned entries occupy the board before the solver starts. */
+  /**
+   * Pinned cells occupy the board before the solver starts.
+   *
+   * They carry their real assignment and subject where known, so a pinned cell
+   * still consumes that assignment's one-per-day allowance and still counts
+   * against spreading the subject through the week.
+   */
   function seedLocked(target: Ledger) {
     for (const l of input.locked ?? []) {
       const orders = Array.from({ length: l.duration }, (_, i) => l.slotOrder + i);
       target.occupy(
-        { sectionId: l.sectionId, facultyId: l.facultyId } as Session,
-        l, orders, "locked"
+        {
+          sectionId: l.sectionId,
+          facultyId: l.facultyId,
+          subjectId: l.subjectId ?? `locked:${l.sessionKey}`,
+          assignmentId: l.assignmentId ?? "",
+        } as Session,
+        l, orders
       );
     }
   }
@@ -136,11 +165,7 @@ export function solve(input: SolverInput): SolverResult {
   const eligibleRooms = new Map<string, RoomRef[]>();
   for (const s of input.sessions) {
     const strength = sectionById.get(s.sectionId)?.strength ?? 0;
-    const fits = input.rooms
-      .filter((r) => roomFits(r, s, strength))
-      // smallest adequate room first — keeps big halls free for big sections
-      .sort((a, b) => a.capacity - b.capacity);
-    eligibleRooms.set(s.key, fits);
+    eligibleRooms.set(s.key, eligibleRoomsFor(input.rooms, s, s.kind, strength));
   }
 
   // A session with no eligible room at all can never be placed. Pull these out
@@ -156,7 +181,8 @@ export function solve(input: SolverInput): SolverResult {
     if (a.duration !== b.duration) return b.duration - a.duration;
     const sa = sectionById.get(a.sectionId)?.strength ?? 0;
     const sb = sectionById.get(b.sectionId)?.strength ?? 0;
-    return sb - sa;
+    if (sa !== sb) return sb - sa;
+    return a.key.localeCompare(b.key); // stable for a given seed
   });
 
   let placements: Record<string, Placement> = {};
@@ -184,11 +210,18 @@ export function solve(input: SolverInput): SolverResult {
 
     const blocked = new Set(fac.unavailability.map((u) => k(u.day, u.slotOrder)));
     const rooms = eligibleRooms.get(s.key)!;
+    const w = input.rules.weights;
     const out: { p: Placement; score: number }[] = [];
 
     for (const day of input.days) {
+      // ── Hard: same assignment must not exceed its per-day cap ──────────
+      const sameAssignmentToday = ledger.assignmentDay.get(`${s.assignmentId}:${day}`) ?? 0;
+      if (sameAssignmentToday >= input.rules.maxSessionsPerAssignmentPerDay) continue;
+
       const facDay = ledger.facultyDayLoad.get(`${fac.id}:${day}`) ?? 0;
       if (facDay + s.duration > fac.maxHoursPerDay) continue;
+      const facWeek = ledger.facultyWeekLoad.get(fac.id) ?? 0;
+      if (facWeek + s.duration > fac.maxHoursPerWeek) continue;
       const secDay = ledger.sectionDayLoad.get(`${section.id}:${day}`) ?? 0;
       if (secDay + s.duration > input.rules.maxHoursPerDayPerSection) continue;
 
@@ -199,20 +232,30 @@ export function solve(input: SolverInput): SolverResult {
         if (ledger.consecutiveFor(fac.id, day, win, classOrders) >
             input.rules.maxConsecutiveHoursPerFaculty) continue;
 
+        // Soft preferences, lower is better.
+        let base = 0;
+        const sameSubjectToday =
+          ledger.subjectDay.get(`${s.subjectId}:${s.sectionId}:${day}`) ?? 0;
+        base += sameSubjectToday * 60 * w.subjectSpacing;   // spread a course over the week
+        base += secDay * 3 * w.sectionBalance;              // balance the section's week
+        base += facDay * 2 * w.facultyBalance;              // balance the faculty's week
+        base += win[0] * 0.6;                               // fill the morning first
+
+        // Afternoon free period: penalise a placement that would use up the
+        // section's last free slot inside the configured window. Soft only —
+        // it reorders candidates, it never removes one.
+        if (input.rules.preferAfternoonBreak && afternoonOrders.length > 0) {
+          const freeBefore = ledger.freeWithin(section.id, day, afternoonOrders);
+          const freeAfter = ledger.freeWithin(section.id, day, afternoonOrders, win);
+          if (freeBefore > 0 && freeAfter === 0) base += 45 * w.afternoonBreak;
+        }
+
         for (const room of rooms) {
           if (!ledger.free("room", room.id, day, win)) continue;
-
-          // Soft preferences, lower is better.
-          let score = 0;
-          const sameSubjectToday =
-            ledger.subjectDay.get(`${s.subjectId}:${s.sectionId}:${day}`) ?? 0;
-          score += sameSubjectToday * 60;              // spread a course over the week
-          score += secDay * 3;                          // balance section load
-          score += (room.capacity - section.strength) * 0.4; // tight room fit
+          let score = base;
+          score += (room.capacity - section.strength) * 0.4 * w.roomFit; // tight fit
           if (section.homeRoom && room.id === section.homeRoom && s.kind !== "LAB") score -= 12;
-          score += win[0] * 0.6;                        // fill the morning first
-          score += rand() * 4;                          // break ties, enable restarts
-
+          score += rand() * 4;                              // break ties, enable restarts
           out.push({ p: { day, slotOrder: win[0], duration: s.duration, roomId: room.id }, score });
         }
       }
@@ -234,12 +277,12 @@ export function solve(input: SolverInput): SolverResult {
     for (const p of options) {
       steps++;
       const orders = Array.from({ length: p.duration }, (_, n) => p.slotOrder + n);
-      ledger.occupy(s, p, orders, s.subjectId);
+      ledger.occupy(s, p, orders);
       placements[s.key] = p;
 
       if (backtrack(i + 1)) return true;
 
-      ledger.release(s, p, orders, s.subjectId);
+      ledger.release(s, p, orders);
       delete placements[s.key];
       if (steps > STEP_BUDGET || Date.now() - started > TIME_BUDGET_MS) return false;
     }
@@ -260,7 +303,7 @@ export function solve(input: SolverInput): SolverResult {
       const s = sessionByKey.get(key);
       if (!s) continue;
       const orders = Array.from({ length: p.duration }, (_, n) => p.slotOrder + n);
-      ledger.occupy(s, p, orders, s.subjectId);
+      ledger.occupy(s, p, orders);
       placements[key] = p;
     }
 
@@ -278,7 +321,7 @@ export function solve(input: SolverInput): SolverResult {
       }
       const p = options[0];
       const orders = Array.from({ length: p.duration }, (_, n) => p.slotOrder + n);
-      ledger.occupy(s, p, orders, s.subjectId);
+      ledger.occupy(s, p, orders);
       placements[s.key] = p;
     }
   }
@@ -298,11 +341,16 @@ export function solve(input: SolverInput): SolverResult {
 /** Turns a dead end into something an administrator can act on. */
 function diagnose(s: Session, roomCount: number, strength: number) {
   if (roomCount === 0) {
-    if (s.fixedRoom) return "The pinned room is unavailable for this session length.";
-    return `No ${s.requiredRoomType ?? s.kind.toLowerCase()} room seats ${strength} students. Add a larger room or split the section.`;
+    if (s.roomSelection === "FIXED") {
+      return "The pinned room can't host this session — check its capacity, type and capabilities.";
+    }
+    if (s.roomSelection === "ALLOWED_ROOMS") {
+      return `None of the ${s.allowedRooms.length} permitted room(s) seats ${strength} students with the required type and capabilities.`;
+    }
+    return `No ${describeRequirement(s, s.kind)} seats ${strength} students. Add a suitable room or split the section.`;
   }
   if (s.duration > 1) {
-    return `No run of ${s.duration} free periods left on any working day. Add periods, or shorten the session.`;
+    return `No run of ${s.duration} contiguous free periods left on any teaching day. Add periods, or shorten the session.`;
   }
   return "Every remaining period clashes for this section, faculty member, or room.";
 }

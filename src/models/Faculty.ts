@@ -4,10 +4,11 @@ import { Schema, model, models, type Model } from "mongoose";
 export interface IUnavailability { day: number; slotOrder: number }
 
 export interface IFaculty {
-  facultyId: string;   // "23314"
+  facultyId: string;   // "23314" — the institution's own uid
   name: string;        // "Praveen Malik"
   email?: string;
-  department: string;
+  /** Optional: plenty of visiting//guest staff have no home department. */
+  department?: string;
   designation?: string;
   maxHoursPerWeek: number;
   maxHoursPerDay: number;
@@ -20,7 +21,7 @@ const FacultySchema = new Schema<IFaculty>(
     facultyId: { type: String, required: true, unique: true, trim: true },
     name: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, trim: true },
-    department: { type: String, required: true, trim: true },
+    department: { type: String, trim: true, default: "" },
     designation: { type: String, trim: true },
     maxHoursPerWeek: { type: Number, default: 18 },
     maxHoursPerDay: { type: Number, default: 5 },

@@ -4,17 +4,19 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Badge, Swatch } from "@/components/ui/Badge";
 import { Lock, LockOpen, Trash2, DoorOpen } from "lucide-react";
-import { availableRooms, type LiteEntry, type LiteRoom } from "@/lib/scheduler/validate";
+import { availableRooms, type Candidate, type LiteEntry, type LiteRoom } from "@/lib/scheduler/validate";
 import { DAY_NAMES, prettyTimeSafe } from "@/lib/constants";
 
 /** Details and controls for the session currently selected on the canvas. */
 export function Inspector({
-  entry, rooms, entries, slots, onChangeRoom, onToggleLock, onRemove,
+  entry, rooms, entries, slots, requirement, onChangeRoom, onToggleLock, onRemove,
 }: {
   entry: LiteEntry | null;
   rooms: LiteRoom[];
   entries: LiteEntry[];
   slots: { order: number; start: string; label: string }[];
+  /** The assignment's room rules, so a forbidden room is never offered. */
+  requirement?: Partial<Candidate>;
   onChangeRoom: (roomId: string) => void;
   onToggleLock: () => void;
   onRemove: () => void;
@@ -29,10 +31,11 @@ export function Inspector({
         sectionId: entry.section._id,
         sectionStrength: entry.section.strength ?? 0,
         facultyId: entry.faculty._id,
+        ...requirement,
       },
       entry.day, entry.slotOrder, rooms, entries
     );
-  }, [entry, rooms, entries]);
+  }, [entry, rooms, entries, requirement]);
 
   if (!entry) {
     return (

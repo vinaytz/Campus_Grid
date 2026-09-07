@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Check, CalendarRange } from "lucide-react";
+import { ArrowRight, Check, CalendarRange, AlertTriangle } from "lucide-react";
 import { useResource } from "@/hooks/useApi";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Panel, PanelHead, Stat } from "@/components/ui/Panel";
@@ -11,26 +11,36 @@ import { cn } from "@/lib/utils";
 
 type Stats = {
   faculty: number; subjects: number; rooms: number; sections: number;
-  assignments: number; weeklySessions: number; seatCapacity: number; published: number;
-  latest: { _id: string; name: string; status: string; stats: { requested: number; placed: number } } | null;
+  assignments: number;
+  semesterSessions: number; semesterPeriods: number;
+  capacity: number; slots: number; teachingDays: number; weeks: number;
+  semester: { _id: string; name: string; startDate: string; endDate: string } | null;
+  published: number;
+  latest: {
+    _id: string; name: string; status: string;
+    stats: { requested: number; scheduled: number };
+    validation?: { publishable?: boolean };
+  } | null;
 };
 
 const SETUP = [
   { key: "slots", label: "Define the daily periods", href: "/dashboard/slots" },
-  { key: "rooms", label: "Add rooms with seating capacity", href: "/dashboard/rooms" },
+  { key: "rooms", label: "Add rooms with capacity and capabilities", href: "/dashboard/rooms" },
   { key: "faculty", label: "Add faculty with their IDs", href: "/dashboard/faculty" },
   { key: "subjects", label: "Add subjects with their codes", href: "/dashboard/subjects" },
   { key: "sections", label: "Add sections with student counts", href: "/dashboard/sections" },
-  { key: "assignments", label: "Map faculty to subjects per section", href: "/dashboard/assignments" },
+  { key: "assignments", label: "Map teaching load with exact session counts", href: "/dashboard/assignments" },
+  { key: "semester", label: "Set the semester dates and holidays", href: "/dashboard/semester" },
 ] as const;
 
 export default function Overview() {
   const { data, loading } = useResource<Stats>("/api/stats");
 
   const counts: Record<string, number> = {
-    slots: 1, rooms: data?.rooms ?? 0, faculty: data?.faculty ?? 0,
+    slots: data?.slots ?? 0, rooms: data?.rooms ?? 0, faculty: data?.faculty ?? 0,
     subjects: data?.subjects ?? 0, sections: data?.sections ?? 0,
     assignments: data?.assignments ?? 0,
+    semester: data?.teachingDays ?? 0,
   };
   const done = SETUP.filter((s) => counts[s.key] > 0).length;
   const ready = done === SETUP.length;
@@ -42,12 +52,17 @@ export default function Overview() {
     { label: "Sections", value: data?.sections, href: "/dashboard/sections" },
   ];
 
+  // Demand against supply over the whole term, which is what decides feasibility.
+  const pressure = data?.capacity
+    ? Math.round((data.semesterPeriods / data.capacity) * 100)
+    : 0;
+
   return (
     <>
       <PageHeader
         eyebrow="Overview"
         title="Summary"
-        description="What the scheduler knows about, and how close the current draft is to a complete week."
+        description="What the scheduler knows about, and how much of the semester's teaching it has to place."
         action={
           <Link href="/dashboard/timetables">
             <Button variant="primary" size="sm">Open timetables <ArrowRight className="size-3.5" /></Button>
@@ -71,42 +86,74 @@ export default function Overview() {
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1.2fr_1fr]">
         <Panel>
-          <PanelHead title="Weekly load" />
+          <PanelHead
+            title="Semester load"
+            action={data?.semester
+              ? <Link href="/dashboard/semester" className="font-mono text-[0.68rem] text-muted hover:text-ink">
+                  {data.semester.name}
+                </Link>
+              : undefined}
+          />
           <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
             <Stat
-              label="Periods to place"
-              value={loading ? "—" : data?.weeklySessions ?? 0}
-              sub="across every active assignment"
+              label="Sessions to place"
+              value={loading ? "—" : data?.semesterSessions ?? 0}
+              sub="exact totals across every assignment"
             />
             <Stat
-              label="Room-periods per day"
-              value={loading ? "—" : data?.seatCapacity ?? 0}
-              sub="teaching periods × bookable rooms"
+              label="Teaching days"
+              value={loading ? "—" : data?.teachingDays ?? 0}
+              sub={data?.weeks ? `over ${data.weeks} weeks` : "no semester calendar yet"}
             />
             <Stat
-              label="Assignments"
-              value={loading ? "—" : data?.assignments ?? 0}
-              sub="faculty ↔ subject ↔ section"
+              label="Room-periods available"
+              value={loading ? "—" : data?.capacity ?? 0}
+              sub="teaching days × periods × rooms"
             />
           </div>
-          <p className="rule-t mt-4 pt-3 text-[0.8125rem] leading-relaxed text-muted">
-            As weekly load approaches the room-periods available across the week, generation
-            slows and gaps start appearing. Add rooms or periods before it gets tight.
-          </p>
+
+          {data && data.capacity > 0 && (
+            <div className="rule-t mt-4 pt-3">
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <span className="label">Pressure on the calendar</span>
+                <span className="font-mono text-[0.68rem] text-muted tnum">{pressure}%</span>
+              </div>
+              <div className="h-1 w-full overflow-hidden rounded-full bg-ink/10">
+                <div className={cn(
+                  "h-full rounded-full",
+                  pressure > 70 ? "bg-claret" : pressure > 40 ? "bg-ochre" : "bg-moss"
+                )} style={{ width: `${Math.min(100, pressure)}%` }} />
+              </div>
+              <p className="mt-2 text-[0.8125rem] leading-relaxed text-muted">
+                {pressure > 70
+                  ? "Demand is close to what the term can supply. Generation will be slow and shortfalls are likely — add rooms or periods."
+                  : "Comfortable. There is room for the optimiser to balance loads and protect afternoon breaks."}
+              </p>
+            </div>
+          )}
+
+          {data && !data.semester && (
+            <p className="rule-t mt-4 flex items-start gap-1.5 pt-3 text-[0.8125rem] text-ochre">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+              <span>
+                No semester calendar exists yet, so nothing can be generated.{" "}
+                <Link href="/dashboard/semester" className="underline">Set one up</Link>.
+              </span>
+            </p>
+          )}
         </Panel>
 
         <Panel>
           <PanelHead
             title="Setup"
-            action={
-              <span className="font-mono text-[0.68rem] text-muted tnum">{done}/{SETUP.length}</span>
-            }
+            action={<span className="font-mono text-[0.68rem] text-muted tnum">{done}/{SETUP.length}</span>}
           />
           {ready ? (
             <div>
               <Badge tone="moss"><Check className="size-2.5" /> Ready to generate</Badge>
               <p className="mt-3 text-[0.8125rem] leading-relaxed text-muted">
-                Every prerequisite is in place. Generate a draft, then arrange it on the canvas.
+                Every prerequisite is in place. Generate a semester draft, review it week
+                by week, then publish.
               </p>
             </div>
           ) : (
@@ -149,13 +196,16 @@ export default function Overview() {
                 <p className="mt-0.5 text-[0.9rem] font-medium">{data.latest.name}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Badge tone={data.latest.status === "PUBLISHED" ? "moss" : "ochre"}>{data.latest.status}</Badge>
+              {data.latest.validation?.publishable && (
+                <Badge tone="moss"><Check className="size-2.5" /> Valid</Badge>
+              )}
               <span className="font-mono text-[0.8125rem] text-muted tnum">
-                {data.latest.stats.placed}/{data.latest.stats.requested} placed
+                {data.latest.stats.scheduled}/{data.latest.stats.requested} sessions
               </span>
               <Link href={`/dashboard/timetables/${data.latest._id}`}>
-                <Button size="sm">Open canvas</Button>
+                <Button size="sm">Review</Button>
               </Link>
             </div>
           </div>

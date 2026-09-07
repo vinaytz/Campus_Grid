@@ -39,6 +39,7 @@ export async function connectAndRegister() {
     import("@/models/Subject"),
     import("@/models/Section"),
     import("@/models/Assignment"),
+    import("@/models/Semester"),
     import("@/models/Timetable"),
   ]);
   return conn;

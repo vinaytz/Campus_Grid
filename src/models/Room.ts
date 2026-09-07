@@ -1,10 +1,19 @@
 import { Schema, model, models, type Model } from "mongoose";
 
+/**
+ * A bookable space.
+ *
+ * `type` is the coarse kind; `capabilities` are free-form tags (BYOD, PROJECTOR,
+ * COMPUTER, …). The scheduler never hardcodes a tag name — an assignment lists
+ * the capabilities it needs and the room must be a superset. That means a new
+ * facility is a data change, not a code change.
+ */
 export interface IRoom {
   code: string;      // "301"
   block: string;     // "B"
   capacity: number;  // seats — hard-checked against section strength
-  type: "LECTURE" | "LAB" | "SEMINAR" | "AUDITORIUM";
+  type: "CLASSROOM" | "LECTURE" | "LAB" | "SEMINAR" | "AUDITORIUM";
+  capabilities: string[];
   active: boolean;
 }
 
@@ -15,9 +24,10 @@ const RoomSchema = new Schema<IRoom>(
     capacity: { type: Number, required: true, min: 1 },
     type: {
       type: String,
-      enum: ["LECTURE", "LAB", "SEMINAR", "AUDITORIUM"],
-      default: "LECTURE",
+      enum: ["CLASSROOM", "LECTURE", "LAB", "SEMINAR", "AUDITORIUM"],
+      default: "CLASSROOM",
     },
+    capabilities: { type: [String], default: [] },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }

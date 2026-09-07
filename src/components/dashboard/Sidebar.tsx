@@ -4,22 +4,17 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutGrid, Users, BookMarked, DoorOpen, Layers, Clock,
-  Network, CalendarRange, SlidersHorizontal, LogOut, Menu, X, Command,
+  Network, CalendarRange, CalendarDays, SlidersHorizontal, Upload,
+  LogOut, Menu, X, Command,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/hooks/useApi";
 
+/** Ordered to match the real workflow: data → load → calendar → rules → build. */
 const NAV = [
   {
     group: null,
     items: [{ href: "/dashboard", label: "Overview", icon: LayoutGrid }],
-  },
-  {
-    group: "Build",
-    items: [
-      { href: "/dashboard/timetables", label: "Timetables", icon: CalendarRange },
-      { href: "/dashboard/assignments", label: "Teaching load", icon: Network },
-    ],
   },
   {
     group: "Data",
@@ -29,11 +24,22 @@ const NAV = [
       { href: "/dashboard/rooms", label: "Rooms", icon: DoorOpen },
       { href: "/dashboard/sections", label: "Sections", icon: Layers },
       { href: "/dashboard/slots", label: "Periods", icon: Clock },
+      { href: "/dashboard/import", label: "Bulk import", icon: Upload },
     ],
   },
   {
-    group: null,
-    items: [{ href: "/dashboard/settings", label: "Rules", icon: SlidersHorizontal }],
+    group: "Scheduling",
+    items: [
+      { href: "/dashboard/assignments", label: "Teaching load", icon: Network },
+      { href: "/dashboard/semester", label: "Semester", icon: CalendarDays },
+      { href: "/dashboard/settings", label: "Rules", icon: SlidersHorizontal },
+    ],
+  },
+  {
+    group: "Build",
+    items: [
+      { href: "/dashboard/timetables", label: "Timetables", icon: CalendarRange },
+    ],
   },
 ];
 

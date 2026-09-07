@@ -17,8 +17,11 @@ export type PendingSession = {
   facultyName: string;
   kind: string;
   duration: number;
+  roomSelection?: "AUTO" | "FIXED" | "ALLOWED_ROOMS";
   requiredRoomType?: string;
   fixedRoomId?: string;
+  allowedRoomIds?: string[];
+  requiredCapabilities?: string[];
   remaining: number;
 };
 
@@ -60,7 +63,7 @@ function TrayItem({ s, dimmed }: { s: PendingSession; dimmed: boolean }) {
   );
 }
 
-/** Everything still waiting to be placed. Empty here means the week is complete. */
+/** Weekly pattern cells still waiting to be placed. Empty here means the week is complete. */
 export function SessionTray({
   pending, filterSectionId,
 }: { pending: PendingSession[]; filterSectionId: string | null }) {
@@ -68,9 +71,10 @@ export function SessionTray({
     return (
       <div className="flex flex-col items-center gap-2 px-3 py-10 text-center">
         <CheckCircle2 className="size-5 text-moss" />
-        <p className="text-[0.8125rem] font-medium">Everything is placed</p>
+        <p className="text-[0.8125rem] font-medium">The week is complete</p>
         <p className="text-micro leading-snug text-muted">
-          Every session in the teaching load has a slot on the canvas.
+          Every assignment has its weekly cells on the canvas. Apply the pattern to
+          the semester to turn it into dated sessions.
         </p>
       </div>
     );

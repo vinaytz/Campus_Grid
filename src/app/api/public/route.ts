@@ -2,6 +2,7 @@ import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
 import TimeSlot from "@/models/TimeSlot";
 import Settings from "@/models/Settings";
+import Semester from "@/models/Semester";
 import Section from "@/models/Section";
 import Faculty from "@/models/Faculty";
 import Room from "@/models/Room";
@@ -10,8 +11,12 @@ import { ok, handleError } from "@/lib/api";
 export const revalidate = 60;
 
 /**
- * The only unauthenticated read. Serves the published timetable filtered by
- * one of section / faculty / room, plus the pickers the board needs.
+ * The only unauthenticated read. Serves the published timetable filtered by one
+ * of section / faculty / room.
+ *
+ * Two shapes come back: `entries` is the typical week (the recurring pattern),
+ * and `sessions` are the real dated classes. A `from`/`to` range narrows the
+ * dated list so the board never ships a whole semester to render one week.
  */
 export async function GET(req: Request) {
   try {
@@ -19,6 +24,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const view = searchParams.get("view") ?? "section";
     const id = searchParams.get("id");
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
 
     const [settings, slots, timetable] = await Promise.all([
       Settings.findOne().lean(),
@@ -28,6 +35,10 @@ export async function GET(req: Request) {
         .populate("entries.subject", "code name")
         .populate("entries.faculty", "name facultyId department")
         .populate("entries.room", "code block capacity type")
+        .populate("sessions.section", "number program strength")
+        .populate("sessions.subject", "code name")
+        .populate("sessions.faculty", "name facultyId department")
+        .populate("sessions.room", "code block capacity type")
         .lean(),
     ]);
 
@@ -41,15 +52,29 @@ export async function GET(req: Request) {
 
     if (!timetable) {
       return ok({
-        published: false, settings, slots, directory, entries: [], meta: null,
+        published: false, settings, slots, directory,
+        entries: [], sessions: [], semester: null, meta: null,
       });
     }
 
-    let entries = (timetable as any).entries ?? [];
+    const tt = timetable as any;
+    const semester = tt.semester ? await Semester.findById(tt.semester).lean() : null;
+
+    const field = view === "faculty" ? "faculty" : view === "room" ? "room" : "section";
+
+    let entries = tt.entries ?? [];
+    let sessions = tt.sessions ?? [];
+
     if (id) {
-      const field = view === "faculty" ? "faculty" : view === "room" ? "room" : "section";
       entries = entries.filter((e: any) => String(e[field]?._id) === id);
+      sessions = sessions.filter((s: any) => String(s[field]?._id) === id);
     }
+    if (from) sessions = sessions.filter((s: any) => s.date >= from);
+    if (to) sessions = sessions.filter((s: any) => s.date <= to);
+
+    sessions = [...sessions].sort(
+      (a: any, b: any) => String(a.date).localeCompare(String(b.date)) || a.slotOrder - b.slotOrder
+    );
 
     return ok({
       published: true,
@@ -57,11 +82,20 @@ export async function GET(req: Request) {
       slots,
       directory,
       entries,
+      sessions,
+      semester: semester
+        ? {
+            name: semester.name,
+            startDate: semester.startDate,
+            endDate: semester.endDate,
+            teachingWeekdays: semester.teachingWeekdays,
+          }
+        : null,
       meta: {
-        name: (timetable as any).name,
-        academicYear: (timetable as any).academicYear,
-        term: (timetable as any).term,
-        updatedAt: (timetable as any).updatedAt,
+        name: tt.name,
+        academicYear: tt.academicYear,
+        term: tt.term,
+        updatedAt: tt.updatedAt,
       },
     });
   } catch (e) {

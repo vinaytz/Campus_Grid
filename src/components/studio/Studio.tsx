@@ -12,13 +12,14 @@ import {
 import { api } from "@/hooks/useApi";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { Select, Segmented } from "@/components/ui/Field";
 import { StudioCanvas } from "./StudioCanvas";
 import { SessionTray, type PendingSession } from "./SessionTray";
 import { SessionBlock } from "./SessionBlock";
 import { Inspector } from "./Inspector";
 import { ContextMenu, type ContextTarget } from "./ContextMenu";
-import { dropMap, availableRooms, type LiteEntry, type LiteRoom, type LiteSlot, type Rules, type Verdict } from "@/lib/scheduler/validate";
+import { dropMap, availableRooms, requirementFromAssignment, type LiteEntry, type LiteRoom, type LiteSlot, type Rules, type Verdict } from "@/lib/scheduler/validate";
 import { cn } from "@/lib/utils";
 
 type Lens = "section" | "faculty" | "room";
@@ -27,7 +28,7 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 const uid = () => `tmp_${Math.random().toString(36).slice(2, 10)}`;
 
 export function Studio({
-  timetableId, initialEntries, assignments, slots, rooms, rules, readOnly,
+  timetableId, initialEntries, assignments, slots, rooms, rules, teachingWeeks, readOnly,
 }: {
   timetableId: string;
   initialEntries: LiteEntry[];
@@ -35,6 +36,8 @@ export function Studio({
   slots: LiteSlot[];
   rooms: LiteRoom[];
   rules: Rules;
+  /** Teaching weeks in the semester — sizes the weekly pattern. */
+  teachingWeeks?: number;
   readOnly?: boolean;
 }) {
   const { push } = useToast();
@@ -43,6 +46,7 @@ export function Studio({
   const [past, setPast] = useState<LiteEntry[][]>([]);
   const [future, setFuture] = useState<LiteEntry[][]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [lens, setLens] = useState<Lens>("section");
   const [focus, setFocus] = useState<string>("");
   const [save, setSave] = useState<SaveState>("idle");
@@ -153,8 +157,16 @@ export function Studio({
 
   /* ── Derived data ─────────────────────────────────────────────────── */
 
-  /** Sessions from the teaching load that still have no slot. */
+  /**
+   * Pattern cells from the teaching load that still have no slot.
+   *
+   * The pattern is sized from each assignment's semester total spread over the
+   * teaching weeks — a course needing 40 sessions across 14 weeks wants 3 cells a
+   * week. The exact total is settled later, when the pattern is expanded across
+   * the calendar; this only has to get the weekly rhythm right.
+   */
   const pending = useMemo<PendingSession[]>(() => {
+    const weeks = teachingWeeks && teachingWeeks > 0 ? teachingWeeks : 14;
     const placed = new Map<string, number>();
     for (const e of entries) {
       const k = String((e as any).assignment);
@@ -163,7 +175,10 @@ export function Studio({
     return assignments
       .map((a) => {
         const id = String(a._id);
-        const remaining = a.sessionsPerWeek - (placed.get(id) ?? 0);
+        if (a.active === false) return null;
+        const ideal = Math.ceil((a.requiredSessions ?? 1) / weeks);
+        const want = Math.max(1, Math.min(6, Math.max(a.targetWeeklyFrequency || 0, ideal)));
+        const remaining = want - (placed.get(id) ?? 0);
         if (remaining <= 0) return null;
         return {
           id, assignmentId: id,
@@ -173,13 +188,16 @@ export function Studio({
           subjectName: a.subject?.name ?? "",
           facultyId: String(a.faculty?._id), facultyName: a.faculty?.name ?? "",
           kind: a.kind, duration: a.duration,
+          roomSelection: a.roomSelection ?? "AUTO",
           requiredRoomType: a.requiredRoomType,
           fixedRoomId: a.fixedRoom ? String(a.fixedRoom._id ?? a.fixedRoom) : undefined,
+          allowedRoomIds: (a.allowedRooms ?? []).map((r: any) => String(r._id ?? r)),
+          requiredCapabilities: a.requiredCapabilities ?? [],
           remaining,
         } as PendingSession;
       })
       .filter(Boolean) as PendingSession[];
-  }, [assignments, entries]);
+  }, [assignments, entries, teachingWeeks]);
 
   const lensOptions = useMemo(() => {
     const m = new Map<string, string>();
@@ -211,20 +229,33 @@ export function Studio({
     if (!drag) return null;
     if (drag.kind === "entry") {
       const e = drag.entry;
+      const a = assignments.find((x) => String(x._id) === String((e as any).assignment));
       return {
-        entryId: e._id, duration: e.duration, kind: e.kind,
+        entryId: e._id,
+        assignmentId: (e as any).assignment ? String((e as any).assignment) : undefined,
+        duration: e.duration, kind: e.kind,
         sectionId: e.section._id, sectionStrength: e.section.strength ?? 0,
         facultyId: e.faculty._id, roomId: e.room._id,
+        roomSelection: a?.roomSelection ?? "AUTO",
+        requiredRoomType: a?.requiredRoomType,
+        fixedRoomId: a?.fixedRoom ? String(a.fixedRoom._id ?? a.fixedRoom) : undefined,
+        allowedRoomIds: (a?.allowedRooms ?? []).map((r: any) => String(r._id ?? r)),
+        requiredCapabilities: a?.requiredCapabilities ?? [],
       };
     }
     const p = drag.pending;
     return {
+      assignmentId: p.assignmentId,
       duration: p.duration, kind: p.kind,
       sectionId: p.sectionId, sectionStrength: p.sectionStrength,
       facultyId: p.facultyId,
-      requiredRoomType: p.requiredRoomType, fixedRoomId: p.fixedRoomId,
+      roomSelection: p.roomSelection ?? "AUTO",
+      requiredRoomType: p.requiredRoomType,
+      fixedRoomId: p.fixedRoomId,
+      allowedRoomIds: p.allowedRoomIds ?? [],
+      requiredCapabilities: p.requiredCapabilities ?? [],
     };
-  }, [drag]);
+  }, [drag, assignments]);
 
   /** Recomputed once per drag, then read O(1) per cell as the pointer moves. */
   const verdicts = useMemo<Map<string, Verdict> | null>(() => {
@@ -322,12 +353,14 @@ export function Studio({
   function clearUnpinned() {
     const removable = entries.filter((e) => !e.locked).length;
     if (removable === 0) { push("Nothing to clear — every session is pinned."); return; }
-    if (!confirm(
-      `Take ${removable} unpinned session${removable === 1 ? "" : "s"} off the canvas?\n\n` +
-      `${entries.length - removable} pinned session(s) will stay. You can undo this with Cmd+Z.`
-    )) return;
+    setConfirmClear(true);
+  }
+
+  function confirmClearUnpinned() {
+    const removable = entries.filter((e) => !e.locked).length;
     commit(entries.filter((e) => e.locked));
     setSelectedId(null);
+    setConfirmClear(false);
   }
 
   const mutate = (fn: (e: LiteEntry) => LiteEntry) => {
@@ -367,6 +400,14 @@ export function Studio({
               {lensOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </Select>
           </div>
+          <Modal open={confirmClear} onClose={() => setConfirmClear(false)}
+            title="Clear unpinned sessions?"
+            description="Pinned sessions stay in place. The removed sessions can be restored with Undo.">
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button>
+              <Button variant="primary" onClick={confirmClearUnpinned}>Clear sessions</Button>
+            </div>
+          </Modal>
 
           <div className="h-5 w-px bg-rule-strong" />
 

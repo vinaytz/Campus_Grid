@@ -3,9 +3,11 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { SESSION_COOKIE } from "./constants";
 
-const secret = new TextEncoder().encode(
-  process.env.AUTH_SECRET ?? "dev-only-insecure-secret-change-me"
-);
+const configuredSecret = process.env.AUTH_SECRET;
+if (process.env.NODE_ENV === "production" && !configuredSecret) {
+  throw new Error("AUTH_SECRET must be configured in production.");
+}
+const secret = new TextEncoder().encode(configuredSecret ?? "dev-only-insecure-secret-change-me");
 
 export type SessionUser = { id: string; name: string; email: string; role: string };
 
@@ -63,6 +65,11 @@ export async function requireAdmin() {
   if (!session) {
     const err = new Error("Sign in to continue.") as Error & { status?: number };
     err.status = 401;
+    throw err;
+  }
+  if (session.role !== "ADMIN") {
+    const err = new Error("Administrator access is required.") as Error & { status?: number };
+    err.status = 403;
     throw err;
   }
   return session;

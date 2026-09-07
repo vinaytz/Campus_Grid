@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, LockOpen, Trash2, DoorOpen, ArrowRightLeft, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { availableRooms, type LiteEntry, type LiteRoom } from "@/lib/scheduler/validate";
+import { availableRooms, type Candidate, type LiteEntry, type LiteRoom } from "@/lib/scheduler/validate";
 
 export type ContextTarget = { entry: LiteEntry; x: number; y: number };
 
@@ -12,11 +12,13 @@ export type ContextTarget = { entry: LiteEntry; x: number; y: number };
  * remove — should not require a trip to the inspector.
  */
 export function ContextMenu({
-  target, rooms, entries, onClose, onChangeRoom, onToggleLock, onRemove,
+  target, rooms, entries, requirement, onClose, onChangeRoom, onToggleLock, onRemove,
 }: {
   target: ContextTarget | null;
   rooms: LiteRoom[];
   entries: LiteEntry[];
+  /** The assignment's room rules, so a forbidden room is never offered. */
+  requirement?: Partial<Candidate>;
   onClose: () => void;
   onChangeRoom: (roomId: string) => void;
   onToggleLock: () => void;
@@ -49,6 +51,7 @@ export function ContextMenu({
       entryId: entry._id, duration: entry.duration, kind: entry.kind,
       sectionId: entry.section._id, sectionStrength: entry.section.strength ?? 0,
       facultyId: entry.faculty._id,
+      ...requirement,
     },
     entry.day, entry.slotOrder, rooms, entries
   );

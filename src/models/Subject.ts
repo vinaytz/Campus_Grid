@@ -4,6 +4,10 @@ export interface ISubject {
   code: string;   // "ECE281"
   name: string;   // "Introduction to IoT"
   department: string;
+  /** THEORY vs LAB drives the default room kind when an assignment doesn't override. */
+  type: "THEORY" | "LAB" | "TUTORIAL" | "PROJECT";
+  /** Default periods per session; an assignment may override it. */
+  defaultDuration: 1 | 2 | 3;
   credits: number;
   active: boolean;
 }
@@ -13,6 +17,12 @@ const SubjectSchema = new Schema<ISubject>(
     code: { type: String, required: true, unique: true, trim: true, uppercase: true },
     name: { type: String, required: true, trim: true },
     department: { type: String, required: true, trim: true },
+    type: {
+      type: String,
+      enum: ["THEORY", "LAB", "TUTORIAL", "PROJECT"],
+      default: "THEORY",
+    },
+    defaultDuration: { type: Number, enum: [1, 2, 3], default: 1 },
     credits: { type: Number, default: 3, min: 0 },
     active: { type: Boolean, default: true },
   },

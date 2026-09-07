@@ -5,9 +5,10 @@ import Subject from "@/models/Subject";
 import Section from "@/models/Section";
 import Assignment from "@/models/Assignment";
 import TimeSlot from "@/models/TimeSlot";
+import Semester from "@/models/Semester";
 import {
   roomSchema, facultySchema, subjectSchema,
-  sectionSchema, assignmentSchema, timeSlotSchema,
+  sectionSchema, assignmentSchema, timeSlotSchema, semesterSchema,
 } from "./validators";
 
 type ResourceDef = {
@@ -30,7 +31,10 @@ export const RESOURCES: Record<string, ResourceDef> = {
     schema: roomSchema,
     sort: { block: 1, code: 1 },
     search: ["code", "block"],
-    guards: [{ model: () => Assignment, field: "fixedRoom", label: "assignments" }],
+    guards: [
+      { model: () => Assignment, field: "fixedRoom", label: "assignments" },
+      { model: () => Assignment, field: "allowedRooms", label: "assignments" },
+    ],
   },
   faculty: {
     model: Faculty,
@@ -58,12 +62,18 @@ export const RESOURCES: Record<string, ResourceDef> = {
     model: Assignment,
     schema: assignmentSchema,
     sort: { createdAt: -1 },
-    populate: ["section", "subject", "faculty", "fixedRoom"],
+    populate: ["section", "subject", "faculty", "fixedRoom", "allowedRooms"],
   },
   slots: {
     model: TimeSlot,
     schema: timeSlotSchema,
     sort: { order: 1 },
+  },
+  semesters: {
+    model: Semester,
+    schema: semesterSchema,
+    sort: { startDate: -1 },
+    search: ["name", "term", "academicYear"],
   },
 };
 

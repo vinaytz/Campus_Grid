@@ -28,7 +28,8 @@ export default function FacultyPage() {
           },
           { header: "Status", cell: (r) => <Badge tone={r.active ? "moss" : "neutral"}>{r.active ? "Active" : "Inactive"}</Badge> },
         ],
-        fields: [
+        lookups: { slots: "/api/admin/slots" },
+        fields: (lookups) => [
           { name: "facultyId", label: "Faculty ID", required: true, placeholder: "23314" },
           { name: "name", label: "Full name", required: true, placeholder: "Praveen Malik" },
           { name: "email", label: "Email", type: "email", placeholder: "praveen@school.edu" },
@@ -36,6 +37,12 @@ export default function FacultyPage() {
           { name: "designation", label: "Designation", placeholder: "Assistant Professor" },
           { name: "maxHoursPerDay", label: "Max periods per day", type: "number", defaultValue: 5 },
           { name: "maxHoursPerWeek", label: "Max periods per week", type: "number", defaultValue: 18 },
+          {
+            name: "unavailability", label: "Blocked periods", type: "unavailability",
+            options: (lookups.slots ?? []).map((slot: any) => ({
+              value: String(slot.order), label: `${slot.label} (${slot.start}-${slot.end})`,
+            })),
+          },
           { name: "active", label: "Available for scheduling", type: "toggle", defaultValue: true, full: true },
         ],
       }}

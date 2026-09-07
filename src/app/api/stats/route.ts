@@ -6,7 +6,9 @@ import Section from "@/models/Section";
 import Assignment from "@/models/Assignment";
 import Timetable from "@/models/Timetable";
 import TimeSlot from "@/models/TimeSlot";
+import Semester from "@/models/Semester";
 import { requireAdmin } from "@/lib/auth";
+import { buildTeachingDays, teachingWeekCount } from "@/lib/scheduler";
 import { ok, handleError } from "@/lib/api";
 
 export async function GET() {
@@ -14,7 +16,7 @@ export async function GET() {
     await requireAdmin();
     await connectAndRegister();
 
-    const [faculty, subjects, rooms, sections, assignments, slots, published, latest] =
+    const [faculty, subjects, rooms, sections, assignments, slots, published, latest, semester] =
       await Promise.all([
         Faculty.countDocuments({ active: true }),
         Subject.countDocuments({ active: true }),
@@ -23,19 +25,43 @@ export async function GET() {
         Assignment.find({ active: true }).lean(),
         TimeSlot.countDocuments({ active: true, kind: "CLASS" }),
         Timetable.countDocuments({ status: "PUBLISHED" }),
-        Timetable.findOne().sort({ updatedAt: -1 }).select("name status stats updatedAt").lean(),
+        Timetable.findOne().sort({ updatedAt: -1 })
+          .select("name status stats validation updatedAt").lean(),
+        Semester.findOne({ active: true }).sort({ updatedAt: -1 }).lean(),
       ]);
 
-    const weeklySessions = assignments.reduce(
-      (n: number, a: any) => n + a.sessionsPerWeek * a.duration, 0
+    // Semester demand vs supply, which is what actually decides feasibility.
+    const semesterSessions = assignments.reduce((n: number, a: any) => n + (a.requiredSessions ?? 0), 0);
+    const semesterPeriods = assignments.reduce(
+      (n: number, a: any) => n + (a.requiredSessions ?? 0) * (a.duration ?? 1), 0
     );
-    const seatCapacity = slots * rooms; // teachable room-periods per day
+
+    let teachingDays = 0;
+    let weeks = 0;
+    if (semester) {
+      const days = buildTeachingDays({
+        startDate: semester.startDate,
+        endDate: semester.endDate,
+        teachingWeekdays: semester.teachingWeekdays ?? [1, 2, 3, 4, 5],
+        exceptions: semester.exceptions ?? [],
+      });
+      teachingDays = days.length;
+      weeks = teachingWeekCount(days);
+    }
 
     return ok({
       faculty, subjects, rooms, sections,
       assignments: assignments.length,
-      weeklySessions,
-      seatCapacity,
+      semesterSessions,
+      semesterPeriods,
+      /** Room-periods available across the whole semester. */
+      capacity: teachingDays * slots * rooms,
+      slots,
+      teachingDays,
+      weeks,
+      semester: semester
+        ? { _id: String(semester._id), name: semester.name, startDate: semester.startDate, endDate: semester.endDate }
+        : null,
       published,
       latest,
     });

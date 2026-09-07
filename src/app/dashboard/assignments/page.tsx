@@ -1,8 +1,16 @@
 "use client";
 import { ResourceScreen } from "@/components/dashboard/ResourceScreen";
 import { Badge } from "@/components/ui/Badge";
-import { ROOM_TYPES } from "@/lib/constants";
+import { ROOM_TYPES, ROOM_CAPABILITIES } from "@/lib/constants";
 
+/**
+ * The teaching-load screen. This is the most important domain object in the
+ * system: faculty + subject + section + exact session count + room rules.
+ *
+ * `requiredSessions` is the number that matters — it is the exact total the
+ * published semester timetable must contain. "Sessions per week" is only a hint
+ * for shaping the recurring pattern and can never override it.
+ */
 export default function AssignmentsPage() {
   return (
     <ResourceScreen<any>
@@ -13,9 +21,9 @@ export default function AssignmentsPage() {
         singular: "Assignment",
         searchable: false,
         description:
-          "Who teaches what, to whom, and how often. This is what the generator turns into sessions.",
+          "Who teaches what, to whom, and exactly how many times this semester. This is what the generator turns into dated sessions.",
         emptyHint:
-          "Map a faculty member to a subject for a section — for example, Praveen Malik teaches ECE281 to section 2403, three times a week.",
+          "Map a faculty member to a subject for a section — for example, Praveen Malik teaches ECE281 to section 2403, 40 sessions this semester.",
         lookups: {
           sections: "/api/admin/sections",
           subjects: "/api/admin/subjects",
@@ -34,23 +42,36 @@ export default function AssignmentsPage() {
             ),
           },
           { header: "Faculty", cell: (r) => r.faculty?.name },
-          { header: "Kind", cell: (r) => <Badge tone={r.kind === "LAB" ? "moss" : "lapis"}>{r.kind}</Badge> },
+          { header: "Kind", cell: (r) => <Badge tone={r.kind === "LAB" ? "moss" : r.kind === "TUTORIAL" ? "ochre" : "lapis"}>{r.kind}</Badge> },
           {
-            header: "Per week",
+            header: "Sessions",
             cell: (r) => (
               <span className="font-mono text-micro tnum">
-                {r.sessionsPerWeek} × {r.duration}h
+                <span className="font-semibold">{r.requiredSessions}</span>
+                <span className="text-muted"> × {r.duration}p</span>
+                {r.targetWeeklyFrequency ? <span className="ml-1.5 text-muted">(~{r.targetWeeklyFrequency}/wk)</span> : null}
               </span>
             ),
           },
           {
             header: "Room",
-            cell: (r) => (
-              <span className="font-mono text-micro text-muted">
-                {r.fixedRoom ? `${r.fixedRoom.block}-${r.fixedRoom.code}` : r.requiredRoomType ?? "Any"}
-              </span>
-            ),
+            cell: (r) => {
+              const mode = r.roomSelection ?? "AUTO";
+              const detail =
+                mode === "FIXED"
+                  ? r.fixedRoom ? `${r.fixedRoom.block}-${r.fixedRoom.code}` : "—"
+                  : mode === "ALLOWED_ROOMS"
+                  ? `${r.allowedRooms?.length ?? 0} allowed`
+                  : r.requiredRoomType ?? "Any";
+              return (
+                <span className="font-mono text-micro text-muted">
+                  {detail}
+                  {r.requiredCapabilities?.length ? ` · ${r.requiredCapabilities.join("+")}` : ""}
+                </span>
+              );
+            },
           },
+          { header: "Status", cell: (r) => <Badge tone={r.active ? "moss" : "neutral"}>{r.active ? "Active" : "Inactive"}</Badge> },
         ],
         fields: (lk) => [
           {
@@ -84,8 +105,40 @@ export default function AssignmentsPage() {
             ],
           },
           {
-            name: "sessionsPerWeek", label: "Sessions per week", type: "number", defaultValue: 3,
-            hint: "how many times it meets",
+            name: "requiredSessions", label: "Sessions this semester", type: "number",
+            defaultValue: 40, required: true,
+            hint: "exact total — not per week",
+          },
+          {
+            name: "targetWeeklyFrequency", label: "Roughly per week", type: "number",
+            placeholder: "leave blank to derive",
+            hint: "a hint only; never overrides the total",
+          },
+          {
+            name: "roomSelection", label: "How to choose a room", type: "select",
+            defaultValue: "AUTO", full: true,
+            options: [
+              { value: "AUTO", label: "Automatic — any compatible free room" },
+              { value: "FIXED", label: "Fixed — always this one room" },
+              { value: "ALLOWED_ROOMS", label: "Restricted — only from a list" },
+            ],
+          },
+          {
+            name: "fixedRoom", label: "Pinned room", type: "select",
+            placeholder: "Choose the room", full: true,
+            showIf: (v) => v.roomSelection === "FIXED",
+            options: (lk.rooms ?? []).map((r: any) => ({
+              value: r._id, label: `${r.block}-${r.code} · ${r.capacity} seats · ${r.type}`,
+            })),
+          },
+          {
+            name: "allowedRooms", label: "Permitted rooms", type: "multiselect", full: true,
+            placeholder: "Add rooms on the Rooms screen first.",
+            showIf: (v) => v.roomSelection === "ALLOWED_ROOMS",
+            defaultValue: [],
+            options: (lk.rooms ?? []).map((r: any) => ({
+              value: r._id, label: `${r.block}-${r.code} · ${r.capacity} seats · ${r.type}`,
+            })),
           },
           {
             name: "requiredRoomType", label: "Required room type", type: "select",
@@ -93,12 +146,10 @@ export default function AssignmentsPage() {
             options: ROOM_TYPES.map((t) => ({ value: t, label: t.charAt(0) + t.slice(1).toLowerCase() })),
           },
           {
-            name: "fixedRoom", label: "Pin to a specific room", type: "select",
-            placeholder: "Let the scheduler choose", full: true,
-            hint: "for hardware labs and similar",
-            options: (lk.rooms ?? []).map((r: any) => ({
-              value: r._id, label: `${r.block}-${r.code} · ${r.capacity} seats · ${r.type}`,
-            })),
+            name: "requiredCapabilities", label: "Required capabilities", type: "tags",
+            suggestions: ROOM_CAPABILITIES, defaultValue: [],
+            hint: "the room must have all of these",
+            placeholder: "e.g. BYOD",
           },
           { name: "active", label: "Include when generating", type: "toggle", defaultValue: true, full: true },
         ],

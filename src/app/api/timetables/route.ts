@@ -1,6 +1,7 @@
 import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
 import Settings from "@/models/Settings";
+import Semester from "@/models/Semester";
 import { requireAdmin } from "@/lib/auth";
 import { generateSchema } from "@/lib/validators";
 import { generateTimetable } from "@/lib/scheduler";
@@ -11,7 +12,7 @@ export async function GET() {
     await requireAdmin();
     await connectAndRegister();
     const list = await Timetable.find()
-      .select("name academicYear term status stats createdAt updatedAt")
+      .select("name academicYear term status stats validation semester createdAt updatedAt")
       .sort({ updatedAt: -1 })
       .lean();
     return ok(list);
@@ -20,7 +21,13 @@ export async function GET() {
   }
 }
 
-/** Creating a timetable *is* running the solver — there is no empty draft state. */
+/**
+ * Runs the full generation pipeline and stores the draft.
+ *
+ * The response carries the generation report the review screen needs —
+ * requested vs scheduled, hard violations, soft score, warnings and the
+ * assignments that could not be satisfied.
+ */
 export async function POST(req: Request) {
   try {
     await requireAdmin();
@@ -31,37 +38,55 @@ export async function POST(req: Request) {
 
     // An empty sheet is a valid starting point — the admin fills it on the canvas.
     if (body.empty) {
+      const semester = body.semester
+        ? await Semester.findById(body.semester).lean()
+        : await Semester.findOne({ active: true }).sort({ updatedAt: -1 }).lean();
       const blank = await Timetable.create({
         name: body.name,
-        academicYear: settings?.academicYear ?? "2025-26",
-        term: settings?.term ?? "Odd",
+        semester: semester?._id,
+        academicYear: semester?.academicYear ?? settings?.academicYear ?? "2025-26",
+        term: semester?.term ?? settings?.term ?? "Odd",
         status: "DRAFT",
         entries: [],
-        stats: { requested: 0, placed: 0, unplaced: [], generatedAt: new Date() },
+        sessions: [],
+        stats: { requested: 0, scheduled: 0, patternPlaced: 0, generatedAt: new Date(), feasible: false },
+        validation: { publishable: false },
       });
       return ok({ id: String(blank._id), stats: blank.stats }, 201);
     }
 
-    const { entries, result } = await generateTimetable({
+    const out = await generateTimetable({
       sections: body.sections,
+      semesterId: body.semester ?? undefined,
       seed: body.seed ?? Date.now() % 100000,
     });
+
     const doc = await Timetable.create({
       name: body.name,
-      academicYear: settings?.academicYear ?? "2025-26",
-      term: settings?.term ?? "Odd",
+      semester: out.universe.semester?._id,
+      academicYear: out.universe.semester?.academicYear ?? settings?.academicYear ?? "2025-26",
+      term: out.universe.semester?.term ?? settings?.term ?? "Odd",
       status: "DRAFT",
-      entries,
+      entries: out.entries,
+      sessions: out.sessions,
       stats: {
-        requested: result.stats.requested,
-        placed: result.stats.placed,
-        unplaced: result.unplaced.map((u) => ({ assignment: u.label, reason: u.reason })),
+        ...out.stats,
         generatedAt: new Date(),
-        durationMs: result.stats.durationMs,
+      },
+      validation: {
+        ranAt: new Date(),
+        hardViolations: out.audit.hardViolations,
+        softViolations: out.audit.softViolations,
+        countMismatches: out.audit.countMismatches,
+        publishable: out.audit.publishable,
       },
     });
 
-    return ok({ id: String(doc._id), stats: doc.stats }, 201);
+    return ok({
+      id: String(doc._id),
+      stats: doc.stats,
+      validation: doc.validation,
+    }, 201);
   } catch (e) {
     return handleError(e);
   }

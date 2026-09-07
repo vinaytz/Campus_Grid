@@ -2,11 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Wand2 } from "lucide-react";
+import { Plus, Trash2, Wand2, ShieldCheck, ShieldAlert } from "lucide-react";
 import { api, useResource } from "@/hooks/useApi";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Field";
+import { Input, Select } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Table, TH, TD, EmptyState } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
@@ -15,25 +15,34 @@ import { cn } from "@/lib/utils";
 
 type Row = {
   _id: string; name: string; status: string; academicYear: string; term: string;
-  stats: { requested: number; placed: number; unplaced: { assignment: string; reason: string }[] };
+  stats: { requested: number; scheduled: number; softScore?: number; feasible?: boolean };
+  validation?: { publishable?: boolean; hardViolations?: unknown[]; countMismatches?: unknown[] };
 };
+
+type Semester = { _id: string; name: string; startDate: string; endDate: string; active: boolean };
 
 export default function TimetablesPage() {
   const { push } = useToast();
   const router = useRouter();
   const { data, loading, reload } = useResource<Row[]>("/api/timetables");
+  const { data: semesters } = useResource<Semester[]>("/api/admin/semesters");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [semester, setSemester] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState<Row | null>(null);
 
   async function generate() {
     setBusy(true);
     try {
       const res = await api<{ id: string; stats: Row["stats"] }>("/api/timetables", {
         method: "POST",
-        json: { name: name || `Draft ${new Date().toLocaleDateString()}` },
+        json: {
+          name: name || `Draft ${new Date().toLocaleDateString()}`,
+          semester: semester || undefined,
+        },
       });
-      push(`Placed ${res.stats.placed} of ${res.stats.requested} sessions.`);
+      push(`Scheduled ${res.stats.scheduled} of ${res.stats.requested} required sessions.`);
       router.push(`/dashboard/timetables/${res.id}`);
     } catch (e) {
       push((e as Error).message, "error");
@@ -46,7 +55,7 @@ export default function TimetablesPage() {
     try {
       const res = await api<{ id: string }>("/api/timetables", {
         method: "POST",
-        json: { name: name || "Untitled", empty: true },
+        json: { name: name || "Untitled", semester: semester || undefined, empty: true },
       });
       router.push(`/dashboard/timetables/${res.id}`);
     } catch (e) {
@@ -55,29 +64,22 @@ export default function TimetablesPage() {
     }
   }
 
-  async function publish(id: string) {
-    try {
-      await api(`/api/timetables/${id}`, { method: "PATCH", json: { status: "PUBLISHED" } });
-      push("Published to the public board.");
-      await reload();
-    } catch (e) { push((e as Error).message, "error"); }
-  }
-
   async function remove(id: string) {
-    if (!confirm("Delete this timetable?")) return;
     await api(`/api/timetables/${id}`, { method: "DELETE" });
     push("Timetable deleted.");
+    setDeleting(null);
     await reload();
   }
 
   const rows = data ?? [];
+  const active = (semesters ?? []).find((s) => s.active);
 
   return (
     <>
       <PageHeader
         eyebrow="Build"
         title="Timetables"
-        description="Generate a draft, arrange it on the canvas, then publish one to the public board."
+        description="Generate a semester draft, review and edit it, validate it, then publish one to the public board."
         action={<Button variant="primary" size="sm" onClick={() => setOpen(true)}>
           <Plus className="size-3.5" /> New timetable
         </Button>}
@@ -87,7 +89,7 @@ export default function TimetablesPage() {
         <div className="rounded-md border border-rule bg-sheet shadow-hair">
           <EmptyState
             title="No timetables yet"
-            hint="With faculty, rooms, sections and teaching load in place, generate your first draft — then fine-tune it by hand."
+            hint="With master data, teaching load and a semester calendar in place, generate your first draft — then review it week by week."
             action={<Button variant="primary" size="sm" onClick={() => setOpen(true)}>New timetable</Button>}
           />
         </div>
@@ -95,14 +97,18 @@ export default function TimetablesPage() {
         <Table>
           <thead>
             <tr>
-              <TH>Name</TH><TH>Term</TH><TH>Complete</TH><TH>Status</TH>
+              <TH>Name</TH><TH>Term</TH><TH>Sessions</TH><TH>Soft score</TH>
+              <TH>Valid</TH><TH>Status</TH>
               <TH className="text-right">Actions</TH>
             </tr>
           </thead>
           <tbody>
             {rows.map((t) => {
               const req = t.stats?.requested || 0;
-              const pct = req ? Math.round(((t.stats?.placed ?? 0) / req) * 100) : 0;
+              const done = t.stats?.scheduled ?? 0;
+              const pct = req ? Math.round((done / req) * 100) : 0;
+              const exact = req > 0 && done === req;
+              const publishable = !!t.validation?.publishable;
               return (
                 <tr key={t._id} className="transition-colors hover:bg-ink/[.02]">
                   <TD>
@@ -114,13 +120,30 @@ export default function TimetablesPage() {
                   <TD>
                     <div className="flex items-center gap-2">
                       <div className="h-1 w-16 overflow-hidden rounded-full bg-ink/10">
-                        <div className={cn("h-full rounded-full", pct === 100 ? "bg-moss" : "bg-claret")}
-                          style={{ width: `${pct}%` }} />
+                        <div className={cn("h-full rounded-full", exact ? "bg-moss" : "bg-claret")}
+                          style={{ width: `${Math.min(100, pct)}%` }} />
                       </div>
-                      <span className="font-mono text-micro text-muted tnum">
-                        {t.stats?.placed ?? 0}/{req}
-                      </span>
+                      <span className="font-mono text-micro text-muted tnum">{done}/{req}</span>
                     </div>
+                  </TD>
+                  <TD className="font-mono text-micro tnum text-muted">
+                    {t.stats?.softScore ?? "—"}
+                  </TD>
+                  <TD>
+                    {publishable ? (
+                      <span className="flex items-center gap-1 text-micro text-moss">
+                        <ShieldCheck className="size-3.5" /> Passes
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-micro text-muted">
+                        <ShieldAlert className="size-3.5" />
+                        {(t.validation?.hardViolations?.length ?? 0) > 0
+                          ? `${t.validation!.hardViolations!.length} violations`
+                          : (t.validation?.countMismatches?.length ?? 0) > 0
+                          ? `${t.validation!.countMismatches!.length} miscounts`
+                          : "Unchecked"}
+                      </span>
+                    )}
                   </TD>
                   <TD>
                     <Badge tone={t.status === "PUBLISHED" ? "moss" : t.status === "ARCHIVED" ? "neutral" : "ochre"}>
@@ -129,14 +152,11 @@ export default function TimetablesPage() {
                   </TD>
                   <TD className="text-right">
                     <div className="flex justify-end gap-1">
-                      {t.status !== "PUBLISHED" && (
-                        <Button size="xs" variant="ghost" onClick={() => publish(t._id)}>Publish</Button>
-                      )}
                       <Link href={`/dashboard/timetables/${t._id}`}>
-                        <Button size="xs" variant="secondary">Open canvas</Button>
+                        <Button size="xs" variant="secondary">Review</Button>
                       </Link>
                       <Button size="xs" variant="ghost" className="hover:text-claret"
-                        onClick={() => remove(t._id)} aria-label="Delete">
+                        onClick={() => setDeleting(t)} aria-label="Delete">
                         <Trash2 className="size-3.5" />
                       </Button>
                     </div>
@@ -151,20 +171,47 @@ export default function TimetablesPage() {
       <Modal
         open={open} onClose={() => !busy && setOpen(false)}
         title="New timetable"
-        description="Start from a solved draft, or from an empty sheet you fill in yourself."
+        description="Generate a full semester draft, or start from an empty sheet you fill in yourself."
         footer={<Button variant="ghost" size="sm" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>}
       >
-        <Input label="Name" value={name} onChange={(e) => setName(e.target.value)}
-          placeholder="Odd term — draft 1" />
+        <div className="space-y-4">
+          <Input label="Name" value={name} onChange={(e) => setName(e.target.value)}
+            placeholder="Odd term — draft 1" />
+
+          <Select
+            label="Semester"
+            hint={active ? undefined : "none marked active"}
+            value={semester}
+            onChange={(e) => setSemester(e.target.value)}
+          >
+            <option value="">
+              {active ? `${active.name} (active)` : "Choose a semester"}
+            </option>
+            {(semesters ?? []).map((s) => (
+              <option key={s._id} value={s._id}>
+                {s.name} · {s.startDate} → {s.endDate}
+              </option>
+            ))}
+          </Select>
+
+          {(semesters?.length ?? 0) === 0 && (
+            <p className="rounded border border-ochre-line bg-ochre-soft/60 px-3 py-2 text-[0.8125rem] text-ochre">
+              No semester calendar exists yet. Generation needs one to know which dates
+              can hold classes.{" "}
+              <Link href="/dashboard/semester" className="underline">Set one up first</Link>.
+            </p>
+          )}
+        </div>
 
         <div className="mt-5 space-y-2">
-          <button onClick={generate} disabled={busy}
+          <button onClick={generate} disabled={busy || (semesters?.length ?? 0) === 0}
             className="w-full rounded border border-rule-strong/70 bg-sheet p-3 text-left transition-colors hover:border-claret disabled:opacity-50">
             <span className="flex items-center gap-2 text-[0.875rem] font-medium">
-              <Wand2 className="size-4 text-claret" /> Solve it for me
+              <Wand2 className="size-4 text-claret" /> Generate the semester
             </span>
             <span className="mt-1 block text-[0.8125rem] leading-snug text-muted">
-              Places every active assignment against your rooms, periods and rules. Takes a few seconds.
+              Builds a weekly pattern, expands it across the calendar, reconciles every
+              assignment to its exact session count, then validates the result.
             </span>
           </button>
 
@@ -174,9 +221,16 @@ export default function TimetablesPage() {
               <Plus className="size-4 text-muted" /> Start from an empty sheet
             </span>
             <span className="mt-1 block text-[0.8125rem] leading-snug text-muted">
-              Drag sessions on yourself, and use Fill remaining whenever you want help.
+              Build the weekly pattern by hand, using Fill remaining whenever you want help.
             </span>
           </button>
+        </div>
+      </Modal>
+      <Modal open={!!deleting} onClose={() => setDeleting(null)} title="Delete timetable?"
+        description="This cannot be undone. Published timetables should be archived instead.">
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
+          <Button variant="primary" onClick={() => deleting && remove(deleting._id)}>Delete timetable</Button>
         </div>
       </Modal>
     </>

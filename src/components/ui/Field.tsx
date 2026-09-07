@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { InputHTMLAttributes, SelectHTMLAttributes, ReactNode } from "react";
 
@@ -92,6 +93,167 @@ export function Segmented<T extends string>({
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Free-form tag entry, backed by a suggestion list.
+ *
+ * Capabilities are deliberately open — an institution can invent a tag the code
+ * has never heard of — so this offers the common ones as one-click chips while
+ * still accepting anything typed.
+ */
+export function TagInput({
+  label, hint, value, onChange, suggestions = [], placeholder,
+}: {
+  label?: string;
+  hint?: ReactNode;
+  value: string[];
+  onChange: (v: string[]) => void;
+  suggestions?: readonly string[];
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState("");
+  const current = value ?? [];
+
+  const add = (raw: string) => {
+    const tag = raw.trim().toUpperCase();
+    if (!tag || current.includes(tag)) { setDraft(""); return; }
+    onChange([...current, tag]);
+    setDraft("");
+  };
+
+  const unused = suggestions.filter((s) => !current.includes(s));
+
+  return (
+    <div className="block">
+      {label && <Label hint={hint}>{label}</Label>}
+      <div className={cn(control, "flex min-h-9 flex-wrap items-center gap-1 p-1")}>
+        {current.map((tag) => (
+          <span key={tag}
+            className="inline-flex items-center gap-1 rounded-xs bg-ink/[.06] px-1.5 py-0.5 font-mono text-[0.68rem]">
+            {tag}
+            <button type="button" aria-label={`Remove ${tag}`}
+              onClick={() => onChange(current.filter((t) => t !== tag))}
+              className="text-muted transition-colors hover:text-claret">×</button>
+          </span>
+        ))}
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(draft); }
+            if (e.key === "Backspace" && !draft && current.length) {
+              onChange(current.slice(0, -1));
+            }
+          }}
+          onBlur={() => draft && add(draft)}
+          placeholder={current.length ? "" : placeholder ?? "Type a tag and press Enter"}
+          className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-sm outline-none placeholder:text-muted/50"
+        />
+      </div>
+      {unused.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {unused.map((s) => (
+            <button key={s} type="button" onClick={() => add(s)}
+              className="rounded-xs border border-rule-strong/60 px-1.5 py-0.5 font-mono text-[0.62rem] text-muted transition-colors hover:border-graphite-400 hover:text-ink">
+              + {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Checkbox list for picking several records, e.g. a set of permitted rooms. */
+export function MultiSelect({
+  label, hint, value, onChange, options, emptyHint,
+}: {
+  label?: string;
+  hint?: ReactNode;
+  value: string[];
+  onChange: (v: string[]) => void;
+  options: { value: string; label: string }[];
+  emptyHint?: string;
+}) {
+  const current = value ?? [];
+  const toggle = (id: string) =>
+    onChange(current.includes(id) ? current.filter((v) => v !== id) : [...current, id]);
+
+  return (
+    <div className="block">
+      {label && <Label hint={hint ?? `${current.length} selected`}>{label}</Label>}
+      <div className="thin-scroll max-h-40 overflow-y-auto rounded border border-rule-strong/70 bg-white">
+        {options.length === 0 ? (
+          <p className="px-2.5 py-2 text-micro text-muted">{emptyHint ?? "Nothing to choose from yet."}</p>
+        ) : (
+          options.map((o) => {
+            const on = current.includes(o.value);
+            return (
+              <label key={o.value}
+                className="flex cursor-pointer items-center gap-2 border-b border-rule/70 px-2.5 py-1.5 text-[0.8125rem] last:border-b-0 hover:bg-ink/[.02]">
+                <input type="checkbox" checked={on} onChange={() => toggle(o.value)}
+                  className="size-3.5 accent-claret" />
+                <span className={on ? "font-medium" : "text-muted"}>{o.label}</span>
+              </label>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function UnavailabilityInput({
+  label, value, onChange, slots = [],
+}: {
+  label?: string;
+  value: { day: number; slotOrder: number }[];
+  onChange: (value: { day: number; slotOrder: number }[]) => void;
+  slots?: { value: string; label: string }[];
+}) {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const grouped = [...new Set((value ?? []).map((item) => `${item.day}:${item.slotOrder}`))]
+    .map((key) => {
+      const [day, slotOrder] = key.split(":").map(Number);
+      return { day, slotOrder };
+    })
+    .sort((a, b) => a.day - b.day || a.slotOrder - b.slotOrder);
+
+  const update = (index: number, patch: Partial<{ day: number; slotOrder: number }>) => {
+    const next = grouped.map((item, i) => i === index ? { ...item, ...patch } : item);
+    onChange(next);
+  };
+
+  return (
+    <div className="block sm:col-span-2">
+      {label && <Label hint="Blocked periods repeat every week">{label}</Label>}
+      <div className="space-y-2 rounded border border-rule-strong/70 bg-white p-2.5">
+        {grouped.map((item, index) => (
+          <div key={`${item.day}-${item.slotOrder}-${index}`} className="flex flex-wrap items-end gap-2">
+            <Select label="Weekday" value={String(item.day)}
+              onChange={(e) => update(index, { day: Number(e.target.value) })}>
+              {days.map((day, value) => <option key={day} value={value}>{day}</option>)}
+            </Select>
+            <Select label="Period" value={String(item.slotOrder)}
+              onChange={(e) => update(index, { slotOrder: Number(e.target.value) })}>
+              {slots.map((slot) => <option key={slot.value} value={slot.value}>{slot.label}</option>)}
+            </Select>
+            <button type="button" onClick={() => onChange(grouped.filter((_, i) => i !== index))}
+              className="mb-0.5 h-9 rounded border border-rule-strong/70 px-2 text-sm text-muted hover:border-claret hover:text-claret">
+              Remove
+            </button>
+          </div>
+        ))}
+        <button type="button"
+          onClick={() => onChange([...grouped, { day: 1, slotOrder: Number(slots[0]?.value ?? 0) }])}
+          className="rounded border border-dashed border-rule-strong/70 px-2.5 py-1.5 text-sm text-muted hover:border-claret hover:text-claret">
+          Add blocked period
+        </button>
+        {grouped.length === 0 && <p className="text-micro text-muted">No blocked periods configured.</p>}
+      </div>
     </div>
   );
 }
