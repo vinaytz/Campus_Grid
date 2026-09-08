@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, MapPin, Plus, Trash2, Pin, CalendarPlus } from "lucide-react";
 import { api } from "@/hooks/useApi";
 import { Button } from "@/components/ui/Button";
@@ -59,6 +59,9 @@ export function SemesterView({
   const [week, setWeek] = useState(1);
   const [busy, setBusy] = useState(false);
   const [addingExtra, setAddingExtra] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
+  const [editing, setEditing] = useState<Session | null>(null);
+  const [dragging, setDragging] = useState<Session | null>(null);
 
   const weeks = useMemo(() => {
     const set = new Set(teachingDays.map((d) => d.week));
@@ -109,11 +112,28 @@ export function SemesterView({
   }, [sessions]);
 
   async function removeSession(id: string) {
-    if (!confirm("Remove this class from the semester?\n\nIf it is a regular session this breaks the exact session count, and the timetable will need revalidating before it can be published.")) return;
     setBusy(true);
     try {
       await api(`/api/timetables/${timetableId}/sessions`, { method: "DELETE", json: { sessionId: id } });
       push("Class removed.");
+      await onChanged();
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setBusy(false);
+    }
+
+  }
+
+  async function moveSession(session: Session, date: string, slotOrder: number, room?: string) {
+    setBusy(true);
+    try {
+      await api(`/api/timetables/${timetableId}/sessions`, {
+        method: "PATCH",
+        json: { sessionId: session._id, date, slotOrder, room },
+      });
+      push("Class moved.");
+      setEditing(null);
       await onChanged();
     } catch (e) {
       push((e as Error).message, "error");
@@ -136,7 +156,7 @@ export function SemesterView({
         />
         <div className="w-44">
           <Select value={focus} onChange={(e) => setFocus(e.target.value)} aria-label="Focus">
-            <option value="">All {lens === "faculty" ? "faculty" : `${lens}s`}</option>
+            <option value="">Select one {lens === "faculty" ? "faculty member" : lens}</option>
             {lensOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
         </div>
@@ -225,7 +245,17 @@ export function SemesterView({
                       return (
                         <td key={key} rowSpan={s.duration}
                           className="border-b border-r border-rule/70 p-[3px] align-top last:border-r-0">
-                          <div className={cn(
+                            <div
+                              draggable={!readOnly}
+                              onDragStart={() => setDragging(s)}
+                              onDragEnd={() => setDragging(null)}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                if (dragging && dragging._id !== s._id) void moveSession(dragging, s.date, s.slotOrder, s.room?._id);
+                              }}
+                              onClick={() => !readOnly && setEditing(s)}
+                              className={cn(
                             "group relative flex h-full min-h-[3.1rem] flex-col overflow-hidden rounded-sm border bg-sheet py-1 pl-2 pr-1.5",
                             s.type === "EXTRA" ? "border-dashed border-ochre" : "border-rule-strong/60"
                           )}>
@@ -236,19 +266,19 @@ export function SemesterView({
                               {s.type === "EXTRA" && <span className="font-sans text-[0.55rem] uppercase text-ochre">extra</span>}
                             </span>
                             <span className="truncate text-[0.7rem] leading-tight text-muted">
-                              {lens === "faculty" ? s.section ? `§${s.section.number}` : "" : s.faculty?.name}
+                              {lens === "faculty" ? s.section ? `Section ${s.section.number}` : "" : s.faculty?.name}
                             </span>
                             <span className="mt-auto flex flex-wrap items-center gap-x-1.5 pt-0.5 text-[0.65rem] leading-tight text-muted">
                               {lens !== "room" && s.room && (
                                 <span className="font-mono text-graphite-500">{s.room.block}-{s.room.code}</span>
                               )}
                               {lens !== "section" && s.section && (
-                                <span className="font-mono text-graphite-500">§{s.section.number}</span>
+                                <span className="font-mono text-graphite-500">Section {s.section.number}</span>
                               )}
                             </span>
                             {!readOnly && (
                               <button
-                                onClick={() => removeSession(s._id)} disabled={busy}
+                                onClick={(e) => { e.stopPropagation(); setPendingDelete(s); }} disabled={busy}
                                 aria-label="Remove this class"
                                 className="absolute right-0.5 top-0.5 rounded-xs p-0.5 text-muted opacity-0 transition-opacity hover:text-claret group-hover:opacity-100">
                                 <Trash2 className="size-3" />
@@ -281,7 +311,74 @@ export function SemesterView({
         sessions={sessions}
         onAdded={async () => { setAddingExtra(false); await onChanged(); }}
       />
+      <Modal
+        open={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        title={pendingDelete?.type === "EXTRA" ? "Remove extra class?" : "Remove regular class?"}
+        description={pendingDelete?.type === "EXTRA"
+          ? "This removes only the one-off class and does not change regular session counts."
+          : "This reduces the assignment's regular count. The timetable must be repaired and revalidated before publishing."}
+        footer={<>
+          <Button variant="ghost" onClick={() => setPendingDelete(null)}>Cancel</Button>
+          <Button variant="primary" onClick={() => {
+            if (pendingDelete) void removeSession(pendingDelete._id);
+            setPendingDelete(null);
+          }}>Remove class</Button>
+        </>}
+      ><div /></Modal>
+      <EditSessionModal
+        session={editing}
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        slots={ordered}
+        rooms={rooms}
+        onSave={(date, slot, room) => editing ? moveSession(editing, date, slot, room) : Promise.resolve()}
+        saving={busy}
+      />
     </>
+  );
+}
+
+function EditSessionModal({
+  session, open, onClose, slots, rooms, onSave, saving,
+}: {
+  session: Session | null;
+  open: boolean;
+  onClose: () => void;
+  slots: Slot[];
+  rooms: { _id: string; block: string; code: string }[];
+  onSave: (date: string, slot: number, room: string) => Promise<void>;
+  saving: boolean;
+}) {
+  const [date, setDate] = useState("");
+  const [slot, setSlot] = useState("");
+  const [room, setRoom] = useState("");
+  useEffect(() => {
+    if (session) {
+      setDate(session.date);
+      setSlot(String(session.slotOrder));
+      setRoom(session.room?._id ?? "");
+    }
+  }, [session]);
+  return (
+    <Modal open={open} onClose={onClose} title={session?.type === "EXTRA" ? "Edit extra class" : "Edit regular class"}
+      description="The server rechecks calendar, room, faculty, section, and contiguous-period constraints before saving."
+      footer={<>
+        <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button variant="primary" onClick={() => void onSave(date, Number(slot), room)} loading={saving}>Save changes</Button>
+      </>}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <Select label="Period" value={slot} onChange={(e) => setSlot(e.target.value)}>
+          <option value="">Choose a period</option>
+          {slots.filter((s) => s.kind === "CLASS").map((s) => <option key={s.order} value={s.order}>{s.label}</option>)}
+        </Select>
+        <Select label="Room" value={room} onChange={(e) => setRoom(e.target.value)}>
+          <option value="">Choose a room</option>
+          {rooms.map((r) => <option key={r._id} value={r._id}>{r.block}-{r.code}</option>)}
+        </Select>
+      </div>
+    </Modal>
   );
 }
 

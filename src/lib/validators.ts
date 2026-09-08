@@ -62,7 +62,7 @@ const idList = z.union([z.array(objectId), z.string(), z.null(), z.undefined()])
 
 /** An optional positive integer hint, where blank means "not set". */
 const optionalInt = (min: number, max: number) =>
-  z.union([z.coerce.number().int().min(min).max(max), z.literal(""), z.null(), z.undefined()])
+  z.union([z.literal(""), z.null(), z.undefined(), z.coerce.number().int().min(min).max(max)])
     .transform((v) => (isEmpty(v) ? null : Number(v)));
 
 export const ROOM_TYPE_ENUM = z.enum(["CLASSROOM", "LECTURE", "LAB", "SEMINAR", "AUDITORIUM"]);
@@ -228,6 +228,14 @@ export const moveSessionSchema = z.object({
   date: isoDate,
   slotOrder: z.coerce.number().int().min(0),
   room: optionalId,
+});
+
+export const regularSessionSchema = z.object({
+  type: z.literal("REGULAR").default("REGULAR"),
+  assignment: objectId,
+  room: objectId,
+  date: isoDate,
+  slotOrder: z.coerce.number().int().min(0),
 });
 
 /** An ad-hoc extra class. Never changes an assignment's requiredSessions. */

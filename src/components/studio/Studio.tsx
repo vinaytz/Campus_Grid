@@ -12,6 +12,7 @@ import {
 import { api } from "@/hooks/useApi";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { Select, Segmented } from "@/components/ui/Field";
 import { StudioCanvas } from "./StudioCanvas";
 import { SessionTray, type PendingSession } from "./SessionTray";
@@ -50,6 +51,7 @@ export function Studio({
   const [save, setSave] = useState<SaveState>("idle");
   const [filling, setFilling] = useState(false);
   const [menu, setMenu] = useState<ContextTarget | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const [drag, setDrag] = useState<
     | { kind: "entry"; entry: LiteEntry }
@@ -351,10 +353,6 @@ export function Studio({
   function clearUnpinned() {
     const removable = entries.filter((e) => !e.locked).length;
     if (removable === 0) { push("Nothing to clear — every session is pinned."); return; }
-    if (!confirm(
-      `Take ${removable} unpinned session${removable === 1 ? "" : "s"} off the canvas?\n\n` +
-      `${entries.length - removable} pinned session(s) will stay. You can undo this with Cmd+Z.`
-    )) return;
     commit(entries.filter((e) => e.locked));
     setSelectedId(null);
   }
@@ -426,7 +424,7 @@ export function Studio({
 
             <SaveBadge state={save} />
 
-            <Button variant="ghost" size="sm" onClick={clearUnpinned}
+            <Button variant="ghost" size="sm" onClick={() => setConfirmClear(true)}
               title="Remove every unpinned session from the canvas">
               <Trash2 className="size-3.5" />
               <span className="hidden sm:inline">Clear</span>
@@ -521,6 +519,16 @@ export function Studio({
           </div>
         )}
       </DragOverlay>
+      <Modal
+        open={confirmClear}
+        onClose={() => setConfirmClear(false)}
+        title="Clear unpinned sessions?"
+        description="Unpinned weekly-pattern sessions will be removed. Pinned sessions stay in place and the change can be undone."
+        footer={<>
+          <Button variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button>
+          <Button variant="primary" onClick={() => { setConfirmClear(false); clearUnpinned(); }}>Clear unpinned</Button>
+        </>}
+      ><div /></Modal>
     </DndContext>
   );
 }

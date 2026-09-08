@@ -90,16 +90,16 @@ export default function SemesterPage() {
   }
 
   const toggleWeekday = (d: number) =>
-    set("teachingWeekdays", form.teachingWeekdays.includes(d)
-      ? form.teachingWeekdays.filter((x) => x !== d)
-      : [...form.teachingWeekdays, d].sort());
+    set("teachingWeekdays", form!.teachingWeekdays.includes(d)
+      ? form!.teachingWeekdays.filter((x) => x !== d)
+      : [...form!.teachingWeekdays, d].sort());
 
   function addException() {
     if (!draft.date || !draft.label.trim()) {
       push("An exception needs a date and a label.", "error");
       return;
     }
-    set("exceptions", [...form.exceptions, { ...draft, label: draft.label.trim() }]
+    set("exceptions", [...form!.exceptions, { ...draft, label: draft.label.trim() }]
       .sort((a, b) => a.date.localeCompare(b.date)));
     setDraft({ date: "", kind: "HOLIDAY", label: "", followsWeekday: null });
   }
@@ -107,10 +107,10 @@ export default function SemesterPage() {
   async function save() {
     setSaving(true);
     try {
-      const payload = { ...form };
+      const payload = { ...form! };
       delete (payload as any)._id;
-      const saved = form._id
-        ? await api<Semester>(`/api/admin/semesters/${form._id}`, { method: "PUT", json: payload })
+      const saved = form!._id
+        ? await api<Semester>(`/api/admin/semesters/${form!._id}`, { method: "PUT", json: payload })
         : await api<Semester>("/api/admin/semesters", { method: "POST", json: payload });
       push("Semester calendar saved.");
       setForm(saved);

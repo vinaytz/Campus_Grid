@@ -43,7 +43,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
     const doc = await Timetable.findById(id);
     if (!doc) return fail("That timetable no longer exists.", 404);
-    if (doc.status === "PUBLISHED") {
+    if (String(doc.status) === "PUBLISHED") {
+      return fail("This timetable is published. Move it back to draft before editing.", 409);
+    }
+    if (String(doc.status) === "PUBLISHED") {
       return fail("This timetable is published. Move it back to draft before editing.", 409);
     }
 
@@ -56,7 +59,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       {
         sessionId: body.sessionId,
         date: body.date,
-        slotOrder: body.slotOrder,
+        slotOrder: Number(body.slotOrder),
         duration: session.duration,
         sectionId: String(session.section),
         facultyId: String(session.faculty),
@@ -110,6 +113,9 @@ export async function POST(req: Request, { params }: Ctx) {
 
     const doc = await Timetable.findById(id);
     if (!doc) return fail("That timetable no longer exists.", 404);
+    if (doc.status === "PUBLISHED") {
+      return fail("This timetable is published. Move it back to draft before editing.", 409);
+    }
 
     const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
 
@@ -117,11 +123,11 @@ export async function POST(req: Request, { params }: Ctx) {
       {
         date: body.date,
         slotOrder: body.slotOrder,
-        duration: body.duration,
+        duration: Number(body.duration || 1),
         sectionId: body.section,
         facultyId: body.faculty,
         roomId: body.room,
-        kind: body.kind,
+        kind: body.kind ?? "LECTURE",
         type: "EXTRA",
       },
       {
@@ -169,6 +175,9 @@ export async function DELETE(req: Request, { params }: Ctx) {
 
     const doc = await Timetable.findById(id);
     if (!doc) return fail("That timetable no longer exists.", 404);
+    if (String(doc.status) === "PUBLISHED") {
+      return fail("This timetable is published. Move it back to draft before editing.", 409);
+    }
 
     const session = doc.sessions.id(sessionId);
     if (!session) return fail("That session is no longer on this timetable.", 404);

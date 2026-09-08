@@ -38,7 +38,7 @@ export default function FacultyPage() {
           { name: "maxHoursPerDay", label: "Max periods per day", type: "number", defaultValue: 5 },
           { name: "maxHoursPerWeek", label: "Max periods per week", type: "number", defaultValue: 18 },
           {
-            name: "unavailability", label: "Blocked periods", type: "unavailability",
+            name: "unavailability", label: "Blocked periods", type: "multiselect",
             options: (lookups.slots ?? []).map((slot: any) => ({
               value: String(slot.order), label: `${slot.label} (${slot.start}-${slot.end})`,
             })),

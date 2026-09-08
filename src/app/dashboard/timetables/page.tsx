@@ -30,6 +30,7 @@ export default function TimetablesPage() {
   const [name, setName] = useState("");
   const [semester, setSemester] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   async function generate() {
     setBusy(true);
@@ -64,7 +65,6 @@ export default function TimetablesPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this timetable?")) return;
     await api(`/api/timetables/${id}`, { method: "DELETE" });
     push("Timetable deleted.");
     await reload();
@@ -155,7 +155,7 @@ export default function TimetablesPage() {
                         <Button size="xs" variant="secondary">Review</Button>
                       </Link>
                       <Button size="xs" variant="ghost" className="hover:text-claret"
-                        onClick={() => remove(t._id)} aria-label="Delete">
+                        onClick={() => setDeleting(t._id)} aria-label="Delete">
                         <Trash2 className="size-3.5" />
                       </Button>
                     </div>
@@ -225,6 +225,19 @@ export default function TimetablesPage() {
           </button>
         </div>
       </Modal>
+      <Modal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title="Delete timetable?"
+        description="This removes the draft and all of its dated sessions."
+        footer={<>
+          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
+          <Button variant="primary" onClick={() => {
+            if (deleting) void remove(deleting);
+            setDeleting(null);
+          }}>Delete</Button>
+        </>}
+      ><div /></Modal>
     </>
   );
 }

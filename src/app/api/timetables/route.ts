@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
     const out = await generateTimetable({
       sections: body.sections,
-      semesterId: body.semester,
+      semesterId: body.semester ?? undefined,
       seed: body.seed ?? Date.now() % 100000,
     });
 

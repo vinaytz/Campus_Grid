@@ -24,6 +24,7 @@ export { auditTimetable } from "./audit";
 export { scoreTimetable } from "./score";
 export { roomSatisfies, eligibleRoomsFor, describeRequirement } from "./rooms";
 export { validateMove, roomOptionsForMove } from "./moves";
+export { validatePattern } from "./moves";
 export { minutesOf, slotsInWindow, spanOf, spanIsContiguous } from "./time";
 
 function err(message: string, status = 400) {

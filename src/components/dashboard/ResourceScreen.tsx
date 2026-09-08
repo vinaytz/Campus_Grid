@@ -52,6 +52,7 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   const [editing, setEditing] = useState<Partial<T> | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<T | null>(null);
 
   const listUrl = `/api/admin/${config.resource}${q ? `?q=${encodeURIComponent(q)}` : ""}`;
   const { data, loading, reload } = useResource<T[]>(listUrl);
@@ -123,7 +124,6 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   }
 
   async function remove(row: T) {
-    if (!confirm(`Delete this ${config.singular.toLowerCase()}? This can't be undone.`)) return;
     try {
       await api(`/api/admin/${config.resource}/${row._id}`, { method: "DELETE" });
       push(`${config.singular} deleted.`);
@@ -183,7 +183,7 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
                 <TD className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button size="xs" variant="ghost" onClick={() => openEdit(row)}>Edit</Button>
-                    <Button size="xs" variant="ghost" className="hover:text-claret" onClick={() => remove(row)}>
+                    <Button size="xs" variant="ghost" className="hover:text-claret" onClick={() => setDeleting(row)}>
                       Delete
                     </Button>
                   </div>
@@ -267,6 +267,19 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
           </p>
         )}
       </Modal>
+      <Modal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title={`Delete ${config.singular.toLowerCase()}?`}
+        description="This cannot be undone and may affect related scheduling data."
+        footer={<>
+          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
+          <Button variant="primary" onClick={() => {
+            if (deleting) void remove(deleting);
+            setDeleting(null);
+          }}>Delete</Button>
+        </>}
+      ><div /></Modal>
     </>
   );
 }

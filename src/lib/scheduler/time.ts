@@ -25,7 +25,7 @@ export function slotsInWindow(slots: SlotRef[], start: string, end: string): num
       const a = minutesOf(s.start);
       const b = minutesOf(s.end);
       if (Number.isNaN(a) || Number.isNaN(b)) return false;
-      return a < to && b > from;
+      return (a >= from && a <= to) || (from === 12 * 60 && a < from && b > from);
     })
     .map((s) => s.order);
 }

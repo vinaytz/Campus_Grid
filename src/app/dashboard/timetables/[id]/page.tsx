@@ -7,6 +7,7 @@ import { Studio } from "@/components/studio/Studio";
 import { SemesterView, type Session, type TeachingDay } from "@/components/timetable/SemesterView";
 import { GenerationReport, type Report } from "@/components/timetable/GenerationReport";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Segmented } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
@@ -29,6 +30,7 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
   const [publishing, setPublishing] = useState(false);
   const [validating, setValidating] = useState(false);
   const [expanding, setExpanding] = useState(false);
+  const [confirmExpand, setConfirmExpand] = useState(false);
 
   const { data, loading, reload } = useResource<Detail>(`/api/timetables/${id}`);
   const { data: slots } = useResource<LiteSlot[]>("/api/admin/slots");
@@ -64,11 +66,6 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
 
   /** Re-expands the weekly pattern across the calendar after Studio edits. */
   async function applyPattern() {
-    if (!confirm(
-      "Re-expand the weekly pattern across the semester?\n\n" +
-      "Dated sessions will be rebuilt from the current pattern and reconciled to each " +
-      "assignment's exact required count. Pinned sessions and extra classes are kept."
-    )) return;
     setExpanding(true);
     try {
       const res = await api<{ scheduled: number; requested: number; trimmed: number; added: number }>(
@@ -171,6 +168,16 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
       </header>
 
       <GenerationReport report={data} />
+      <Modal
+        open={confirmExpand}
+        onClose={() => setConfirmExpand(false)}
+        title="Re-expand weekly pattern?"
+        description="Dated sessions will be rebuilt and reconciled to exact assignment counts. Pinned sessions and extra classes are kept."
+        footer={<>
+          <Button variant="ghost" onClick={() => setConfirmExpand(false)}>Cancel</Button>
+          <Button variant="primary" onClick={() => { setConfirmExpand(false); void applyPattern(); }} loading={expanding}>Re-expand</Button>
+        </>}
+      ><div /></Modal>
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <Segmented<Tab>
@@ -182,7 +189,7 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
           ]}
         />
         {tab === "pattern" && !published && (
-          <Button variant="secondary" size="sm" onClick={applyPattern} loading={expanding}>
+          <Button variant="secondary" size="sm" onClick={() => setConfirmExpand(true)} loading={expanding}>
             <RefreshCw className="size-3.5" /> Apply pattern to semester
           </Button>
         )}

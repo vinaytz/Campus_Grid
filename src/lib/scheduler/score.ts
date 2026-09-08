@@ -37,7 +37,7 @@ function stdev(values: number[]): number {
 }
 
 export function scoreTimetable(input: ScoreInput): ScoreReport {
-  const { sessions, assignments, teachingDays, slots, sections, faculty, rules } = input;
+  const { sessions, assignments, teachingDays, slots, sections, faculty, rooms, rules } = input;
   const w = rules.weights;
   const warnings: string[] = [];
 
@@ -76,9 +76,8 @@ export function scoreTimetable(input: ScoreInput): ScoreReport {
   let worstSection = { id: "", spread: 0 };
   for (const section of sections) {
     const loads = dates.map((d) => sectionDays.get(`${section.id}|${d}`)?.size ?? 0);
-    const taught = loads.filter((n) => n > 0);
-    if (taught.length < 2) continue;
-    const spread = stdev(taught);
+    if (loads.length < 2) continue;
+    const spread = stdev(loads);
     sectionBalance += spread;
     if (spread > worstSection.spread) worstSection = { id: section.id, spread };
   }
