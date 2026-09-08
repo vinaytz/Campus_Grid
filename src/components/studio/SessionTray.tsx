@@ -36,7 +36,7 @@ function TrayItem({ s, dimmed }: { s: PendingSession; dimmed: boolean }) {
       ref={setNodeRef} {...listeners} {...attributes}
       className={cn(
         "group cursor-grab select-none rounded-sm border border-rule-strong/60 bg-sheet px-2 py-1.5",
-        "transition-all duration-150 ease-physical hover:border-graphite-400 hover:shadow-hair active:cursor-grabbing",
+        "transition-all duration-150 ease-physical hover:border-ink/60 active:cursor-grabbing",
         isDragging && "opacity-30",
         dimmed && "opacity-45"
       )}

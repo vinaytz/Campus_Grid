@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+// framer-motion removed per motion policy; modal overlay/interactions remain user-driven
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,29 +19,23 @@ export function Modal({
   }, [open, onClose]);
 
   return (
-    <AnimatePresence>
+    <>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 bg-graphite-950/40 backdrop-blur-[3px]"
+          <div
+            className="absolute inset-0 bg-ink/10 backdrop-blur-[3px]"
             onClick={onClose}
           />
-          <motion.div
-            role="dialog" aria-modal="true" aria-label={title}
-            initial={{ opacity: 0, y: 8, scale: 0.99 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.995 }}
-            transition={{ duration: 0.2, ease: [0.2, 0.9, 0.3, 1] }}
-            className={cn(
-              "relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-lg bg-sheet shadow-lift sm:rounded-lg",
-              wide ? "sm:max-w-3xl" : "sm:max-w-md"
-            )}
-          >
-            <header className="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
+          <div
+                      role="dialog" aria-modal="true" aria-label={title}
+                      className={cn(
+                        "relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-lg border border-line/70 bg-surface shadow-lift sm:rounded-lg",
+                        wide ? "sm:max-w-3xl" : "sm:max-w-md"
+                      )}
+                    >
+            <header className="flex items-start justify-between gap-4 border-b border-line/70 bg-surface/30 px-6 py-5">
               <div>
-                <h2 className="font-display text-lg leading-tight tracking-[-0.01em]">{title}</h2>
+                <h2 className="font-sans text-xl leading-tight tracking-[-0.025em]">{title}</h2>
                 {description && <p className="mt-1 text-[0.8125rem] leading-snug text-muted">{description}</p>}
               </div>
               <button onClick={onClose} aria-label="Close"
@@ -55,9 +49,9 @@ export function Modal({
                 {footer}
               </footer>
             )}
-          </motion.div>
+          </div>
         </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

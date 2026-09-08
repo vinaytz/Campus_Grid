@@ -13,7 +13,7 @@ export type GridEntry = {
 };
 
 const BAR: Record<string, string> = {
-  LECTURE: "bg-lapis", LAB: "bg-moss", TUTORIAL: "bg-ochre",
+  LECTURE: "bg-accent", LAB: "bg-accent/70", TUTORIAL: "bg-accent/40",
 };
 
 /** Read-only week sheet used on the public board. */
@@ -32,16 +32,16 @@ export function TimetableGrid({
   }
 
   return (
-    <div className="thin-scroll overflow-x-auto rounded-md border border-rule bg-sheet shadow-sheet">
+    <div className="thin-scroll overflow-x-auto rounded-lg border border-line bg-surface">
       <table className="w-full min-w-[48rem] border-collapse">
         <thead>
           <tr>
-            <th className="sticky left-0 z-20 w-[74px] border-b border-r border-rule bg-sheet px-2 py-2 text-left">
-              <span className="label">Period</span>
+            <th className="sticky left-0 z-20 w-[86px] border-b border-r border-rule bg-ground/90 px-3 py-3 text-left">
+              <span className="eyebrow">Time</span>
             </th>
             {days.map((d) => (
-              <th key={d} className="border-b border-r border-rule bg-sheet px-2 py-2 text-left last:border-r-0">
-                <span className="text-[0.8125rem] font-semibold tracking-[-0.01em]">
+              <th key={d} className="border-b border-r border-rule bg-ground/70 px-3 py-3 text-left last:border-r-0">
+                <span className="text-[0.86rem] font-semibold tracking-[-0.01em]">
                   <span className="hidden sm:inline">{DAY_NAMES[d]}</span>
                   <span className="sm:hidden">{DAY_SHORT[d]}</span>
                 </span>
@@ -52,7 +52,7 @@ export function TimetableGrid({
         <tbody className="sheet-grid">
           {ordered.map((slot) => (
             <tr key={slot.order}>
-              <th scope="row" className="sticky left-0 z-10 border-b border-r border-rule bg-sheet px-2 py-1.5 text-left align-top">
+              <th scope="row" className="sticky left-0 z-10 border-b border-r border-line bg-surface px-3 py-2 text-left align-top">
                 <span className="block font-mono text-[0.68rem] font-medium leading-tight tnum">
                   {prettyTime(slot.start)}
                 </span>
@@ -72,14 +72,14 @@ export function TimetableGrid({
                   const entry = map.get(key);
 
                   if (!entry) {
-                    return <td key={key} className="h-14 border-b border-r border-rule/70 last:border-r-0" />;
+                    return <td key={key} className="h-16 border-b border-r border-line/70 bg-surface/95 last:border-r-0" />;
                   }
 
                   return (
                     <td key={key} rowSpan={entry.duration}
                       className="border-b border-r border-rule/70 p-[3px] align-top last:border-r-0">
-                      <div className="relative flex h-full min-h-[3.1rem] flex-col overflow-hidden rounded-sm border border-rule-strong/60 bg-sheet py-1 pl-2 pr-1.5">
-                        <span className={cn("absolute inset-y-0 left-0 w-[3px]", BAR[entry.kind] ?? BAR.LECTURE)} />
+                      <div className="group relative flex h-full min-h-[4.25rem] flex-col overflow-hidden rounded-md border border-line/60 bg-surface px-2.5 py-2 transition-colors hover:border-accent/40">
+                        <span className={cn("absolute inset-y-0 left-0 w-1", BAR[entry.kind] ?? BAR.LECTURE)} />
                         <span className="font-mono text-[0.7rem] font-semibold leading-tight tracking-[-0.01em]">
                           {entry.subject?.code}
                         </span>

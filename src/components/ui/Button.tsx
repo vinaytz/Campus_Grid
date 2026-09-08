@@ -10,13 +10,11 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const VARIANTS = {
-  primary:
-    "bg-claret text-white shadow-hair hover:bg-claret-hover active:translate-y-px",
-  secondary:
-    "bg-white text-ink border border-rule-strong/70 hover:border-graphite-400 hover:bg-white active:translate-y-px",
-  dark: "bg-graphite-900 text-white hover:bg-graphite-800 active:translate-y-px",
+  primary: "bg-accent text-white hover:bg-accent/90 active:translate-y-px",
+  secondary: "bg-surface text-ink border border-line/70 hover:border-accent/50 hover:bg-surface/95 active:translate-y-px",
+  dark: "bg-ink text-white hover:brightness-[0.95] active:translate-y-px",
   ghost: "text-muted hover:text-ink hover:bg-ink/[.045]",
-  danger: "bg-white text-claret border border-claret-line hover:bg-claret-soft",
+  danger: "bg-surface text-ink border border-line/70 hover:bg-surface/95",
 };
 
 const SIZES = {
@@ -34,7 +32,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       {...rest}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex select-none items-center justify-center whitespace-nowrap rounded font-medium",
+        "inline-flex select-none items-center justify-center whitespace-nowrap rounded-md font-semibold",
         "transition-all duration-150 ease-physical",
         "disabled:pointer-events-none disabled:opacity-40",
         SIZES[size], VARIANTS[variant], className

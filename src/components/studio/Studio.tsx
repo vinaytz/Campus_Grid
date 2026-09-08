@@ -5,14 +5,12 @@ import {
   useSensor, useSensors, pointerWithin,
   type DragStartEvent, type DragEndEvent,
 } from "@dnd-kit/core";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Undo2, Redo2, Wand2, Check, CloudOff, Loader2, Trash2, Filter,
 } from "lucide-react";
 import { api } from "@/hooks/useApi";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
 import { Select, Segmented } from "@/components/ui/Field";
 import { StudioCanvas } from "./StudioCanvas";
 import { SessionTray, type PendingSession } from "./SessionTray";
@@ -51,7 +49,6 @@ export function Studio({
   const [save, setSave] = useState<SaveState>("idle");
   const [filling, setFilling] = useState(false);
   const [menu, setMenu] = useState<ContextTarget | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
 
   const [drag, setDrag] = useState<
     | { kind: "entry"; entry: LiteEntry }
@@ -353,6 +350,10 @@ export function Studio({
   function clearUnpinned() {
     const removable = entries.filter((e) => !e.locked).length;
     if (removable === 0) { push("Nothing to clear — every session is pinned."); return; }
+    if (!confirm(
+      `Take ${removable} unpinned session${removable === 1 ? "" : "s"} off the canvas?\n\n` +
+      `${entries.length - removable} pinned session(s) will stay. You can undo this with Cmd+Z.`
+    )) return;
     commit(entries.filter((e) => e.locked));
     setSelectedId(null);
   }
@@ -410,11 +411,9 @@ export function Studio({
             {/* Completion is the number that matters, so it is always on screen */}
             <div className="hidden items-center gap-2 sm:flex">
               <div className="h-1 w-24 overflow-hidden rounded-full bg-ink/10">
-                <motion.div
-                  className={cn("h-full rounded-full", progress === 100 ? "bg-moss" : "bg-claret")}
-                  initial={false}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3, ease: [0.2, 0.9, 0.3, 1] }}
+                <div
+                  className={cn("h-full rounded-full", progress === 100 ? "bg-accent" : "bg-accent/80")}
+                  style={{ width: `${progress}%` }}
                 />
               </div>
               <span className="font-mono text-[0.68rem] text-muted tnum">
@@ -424,7 +423,7 @@ export function Studio({
 
             <SaveBadge state={save} />
 
-            <Button variant="ghost" size="sm" onClick={() => setConfirmClear(true)}
+            <Button variant="ghost" size="sm" onClick={clearUnpinned}
               title="Remove every unpinned session from the canvas">
               <Trash2 className="size-3.5" />
               <span className="hidden sm:inline">Clear</span>
@@ -511,7 +510,7 @@ export function Studio({
             {drag.kind === "entry" ? (
               <SessionBlock entry={drag.entry} compact />
             ) : (
-              <div className="flex h-full flex-col justify-center rounded-sm border border-claret bg-sheet px-2">
+              <div className="flex h-full flex-col justify-center rounded-sm border border-line bg-sheet px-2">
                 <span className="font-mono text-[0.7rem] font-semibold">{drag.pending.subjectCode}</span>
                 <span className="truncate text-[0.65rem] text-muted">{drag.pending.facultyName}</span>
               </div>
@@ -519,16 +518,6 @@ export function Studio({
           </div>
         )}
       </DragOverlay>
-      <Modal
-        open={confirmClear}
-        onClose={() => setConfirmClear(false)}
-        title="Clear unpinned sessions?"
-        description="Unpinned weekly-pattern sessions will be removed. Pinned sessions stay in place and the change can be undone."
-        footer={<>
-          <Button variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button>
-          <Button variant="primary" onClick={() => { setConfirmClear(false); clearUnpinned(); }}>Clear unpinned</Button>
-        </>}
-      ><div /></Modal>
     </DndContext>
   );
 }
@@ -537,21 +526,17 @@ function SaveBadge({ state }: { state: SaveState }) {
   const map = {
     idle: { icon: null, text: "", cls: "text-muted" },
     saving: { icon: <Loader2 className="size-3 animate-spin" />, text: "Saving", cls: "text-muted" },
-    saved: { icon: <Check className="size-3" />, text: "Saved", cls: "text-moss" },
-    error: { icon: <CloudOff className="size-3" />, text: "Not saved", cls: "text-claret" },
+    saved: { icon: <Check className="size-3" />, text: "Saved", cls: "text-accent" },
+    error: { icon: <CloudOff className="size-3" />, text: "Not saved", cls: "text-ink" },
   }[state];
 
   return (
-    <AnimatePresence mode="wait">
+    <>
       {map.text && (
-        <motion.span
-          key={state}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className={cn("flex items-center gap-1 font-mono text-[0.65rem] uppercase tracking-wide", map.cls)}
-        >
+        <span key={state} className={cn("flex items-center gap-1 font-mono text-[0.65rem] uppercase tracking-wide", map.cls)}>
           {map.icon}{map.text}
-        </motion.span>
+        </span>
       )}
-    </AnimatePresence>
+    </>
   );
 }

@@ -7,9 +7,11 @@ import Section from "@/models/Section";
 import Faculty from "@/models/Faculty";
 import Room from "@/models/Room";
 import University from "@/models/University";
-import { ok, handleError } from "@/lib/api";
+import { isValidObjectId } from "mongoose";
+import { ok, fail, handleError } from "@/lib/api";
 
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 /**
  * The only unauthenticated read. Serves the published timetable filtered by one
@@ -25,18 +27,27 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const view = searchParams.get("view") ?? "section";
     const id = searchParams.get("id");
-    const universityCode = searchParams.get("university");
+    const universitySlug = searchParams.get("university")?.trim().toLowerCase();
+    const semesterId = searchParams.get("semester");
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    const university = await University.findOne(
-      universityCode ? { code: universityCode.toUpperCase(), active: true } : { active: true }
-    ).sort({ name: 1 }).lean();
+    if (!universitySlug) return fail("A university is required.", 400);
+    if (semesterId && !isValidObjectId(semesterId)) return fail("Semester not found.", 404);
+    const university = await University.findOne({
+      active: true,
+      $or: [{ slug: universitySlug }, { code: universitySlug.toUpperCase() }],
+    }).lean();
+    if (!university) return fail("University not found.", 404);
     const universityId = university?._id;
     const [settings, slots, timetable] = await Promise.all([
       Settings.findOne({ universityId }).lean(),
       TimeSlot.find({ universityId, active: true }).sort({ order: 1 }).lean(),
-      Timetable.findOne({ universityId, status: "PUBLISHED" })
+      Timetable.findOne({
+        universityId,
+        status: "PUBLISHED",
+        ...(semesterId ? { semester: semesterId } : {}),
+      }).sort({ updatedAt: -1 })
         .populate("entries.section", "number program strength")
         .populate("entries.subject", "code name")
         .populate("entries.faculty", "name facultyId department")
@@ -48,10 +59,15 @@ export async function GET(req: Request) {
         .lean(),
     ]);
 
-    const [sections, faculty, rooms] = await Promise.all([
+    const [sections, faculty, rooms, publishedTimetables] = await Promise.all([
       Section.find({ universityId, active: true }).select("number program semester").sort({ number: 1 }).lean(),
       Faculty.find({ universityId, active: true }).select("name facultyId department").sort({ name: 1 }).lean(),
       Room.find({ universityId, active: true }).select("code block type").sort({ block: 1, code: 1 }).lean(),
+      Timetable.find({ universityId, status: "PUBLISHED" })
+        .select("semester name academicYear term updatedAt")
+        .populate("semester", "name startDate endDate")
+        .sort({ updatedAt: -1 })
+        .lean(),
     ]);
 
     const directory = { sections, faculty, rooms };
@@ -60,6 +76,15 @@ export async function GET(req: Request) {
       return ok({
         published: false, settings, slots, directory,
         entries: [], sessions: [], semester: null, meta: null,
+        university: { name: university.name, code: university.code, slug: university.slug ?? university.code.toLowerCase() },
+        publishedSemesters: publishedTimetables.map((item: any) => ({
+          id: item.semester?._id ? String(item.semester._id) : null,
+          name: item.semester?.name ?? item.name,
+          startDate: item.semester?.startDate ?? null,
+          endDate: item.semester?.endDate ?? null,
+          academicYear: item.academicYear,
+          term: item.term,
+        })),
       });
     }
 
@@ -103,6 +128,15 @@ export async function GET(req: Request) {
         term: tt.term,
         updatedAt: tt.updatedAt,
       },
+      university: { name: university.name, code: university.code, slug: university.slug ?? university.code.toLowerCase() },
+      publishedSemesters: publishedTimetables.map((item: any) => ({
+        id: item.semester?._id ? String(item.semester._id) : null,
+        name: item.semester?.name ?? item.name,
+        startDate: item.semester?.startDate ?? null,
+        endDate: item.semester?.endDate ?? null,
+        academicYear: item.academicYear,
+        term: item.term,
+      })),
     });
   } catch (e) {
     return handleError(e);

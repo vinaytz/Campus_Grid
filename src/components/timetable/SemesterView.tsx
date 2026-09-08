@@ -32,24 +32,138 @@ export type Session = {
 
 type Lens = "section" | "faculty" | "room";
 
-const BAR: Record<string, string> = { LECTURE: "bg-lapis", LAB: "bg-moss", TUTORIAL: "bg-ochre" };
+const BAR: Record<string, string> = { LECTURE: "bg-accent", LAB: "bg-accent/70", TUTORIAL: "bg-accent/40" };
+
+function EditSessionModal({
+  open, session, teachingDays, slots, rooms, onClose, onSave, saving,
+}: {
+  open: boolean;
+  session: Session | null;
+  teachingDays: TeachingDay[];
+  slots: Slot[];
+  rooms: { _id: string; block: string; code: string; capacity: number; type: string }[];
+  onClose: () => void;
+  onSave: (date: string, slotOrder: number, room: string) => Promise<void>;
+  saving: boolean;
+}) {
+  const [date, setDate] = useState("");
+  const [slotOrder, setSlotOrder] = useState("");
+  const [room, setRoom] = useState("");
+
+  useEffect(() => {
+    if (session) {
+      setDate(session.date);
+      setSlotOrder(String(session.slotOrder));
+      setRoom(session.room?._id ?? "");
+    }
+  }, [session]);
+
+  return (
+    <Modal open={open} onClose={onClose}
+      title={session?.type === "EXTRA" ? "Edit extra class" : "Edit regular class"}
+      description="The server rechecks clashes, rooms, calendar rules and faculty availability before saving."
+      footer={<><Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={() => void onSave(date, Number(slotOrder), room)} loading={saving}
+          disabled={!date || !slotOrder || !room}>Save change</Button></>}>
+      <div className="space-y-3">
+        <Select label="Date" value={date} onChange={(e) => setDate(e.target.value)}>
+          {teachingDays.map((d) => <option key={d.date} value={d.date}>{d.date}</option>)}
+        </Select>
+        <Select label="Start period" value={slotOrder} onChange={(e) => setSlotOrder(e.target.value)}>
+          {slots.filter((s) => s.kind === "CLASS").map((s) =>
+            <option key={s.order} value={s.order}>{s.label} ({s.start}-{s.end})</option>)}
+        </Select>
+        <Select label="Room" value={room} onChange={(e) => setRoom(e.target.value)}>
+          {rooms.map((r) => <option key={r._id} value={r._id}>{r.block}-{r.code}</option>)}
+        </Select>
+      </div>
+    </Modal>
+  );
+}
+
+function RegularClassModal({
+  open, onClose, timetableId, assignments, teachingDays, slots, rooms, onAdded,
+}: {
+  open: boolean;
+  onClose: () => void;
+  timetableId: string;
+  assignments: { _id: string; section: { number: string }; subject: { code: string }; faculty: { name: string }; duration: number; kind: string }[];
+  teachingDays: TeachingDay[];
+  slots: Slot[];
+  rooms: { _id: string; block: string; code: string; capacity: number; type: string }[];
+  onAdded: () => Promise<void>;
+}) {
+  const { push } = useToast();
+  const [assignment, setAssignment] = useState("");
+  const [date, setDate] = useState("");
+  const [slotOrder, setSlotOrder] = useState("");
+  const [room, setRoom] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    setSaving(true);
+    try {
+      await api(`/api/timetables/${timetableId}/sessions`, {
+        method: "POST",
+        json: { type: "REGULAR", assignment, date, slotOrder: Number(slotOrder), room },
+      });
+      push("Regular class added.");
+      await onAdded();
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add regular class"
+      description="Choose an existing teaching assignment. Its configured duration and hard constraints are enforced by the server."
+      footer={<><Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={() => void submit()} loading={saving}
+          disabled={!assignment || !date || !slotOrder || !room}>Add class</Button></>}>
+      <div className="space-y-3">
+        <Select label="Teaching assignment" value={assignment} onChange={(e) => setAssignment(e.target.value)}>
+          <option value="">Choose an assignment</option>
+          {assignments.map((a) => <option key={a._id} value={a._id}>
+            {a.subject?.code} · Section {a.section?.number} · {a.faculty?.name} · {a.duration}h
+          </option>)}
+        </Select>
+        <Select label="Date" value={date} onChange={(e) => setDate(e.target.value)}>
+          <option value="">Choose a teaching day</option>
+          {teachingDays.map((d) => <option key={d.date} value={d.date}>{d.date}</option>)}
+        </Select>
+        <Select label="Start period" value={slotOrder} onChange={(e) => setSlotOrder(e.target.value)}>
+          <option value="">Choose a period</option>
+          {slots.filter((s) => s.kind === "CLASS").map((s) =>
+            <option key={s.order} value={s.order}>{s.label} ({s.start}-{s.end})</option>)}
+        </Select>
+        <Select label="Room" value={room} onChange={(e) => setRoom(e.target.value)}>
+          <option value="">Choose a room</option>
+          {rooms.map((r) => <option key={r._id} value={r._id}>{r.block}-{r.code}</option>)}
+        </Select>
+      </div>
+    </Modal>
+  );
+}
 
 /**
  * The dated semester view: the actual classes, week by week.
  *
- * The Studio edits the recurring weekly pattern; this edits the real thing. Every
+ * This edits the real dated timetable. Every
  * move here is validated server-side against the semester calendar and every
  * hard constraint before it is written, and a rejected move leaves the timetable
  * untouched.
  */
 export function SemesterView({
-  timetableId, sessions, slots, teachingDays, rooms, readOnly, onChanged,
+  timetableId, sessions, slots, teachingDays, rooms, assignments, readOnly, onChanged,
 }: {
   timetableId: string;
   sessions: Session[];
   slots: Slot[];
   teachingDays: TeachingDay[];
   rooms: { _id: string; block: string; code: string; capacity: number; type: string }[];
+  assignments: { _id: string; section: { number: string }; subject: { code: string }; faculty: { name: string }; duration: number; kind: string }[];
   readOnly?: boolean;
   onChanged: () => Promise<void> | void;
 }) {
@@ -59,9 +173,16 @@ export function SemesterView({
   const [week, setWeek] = useState(1);
   const [busy, setBusy] = useState(false);
   const [addingExtra, setAddingExtra] = useState(false);
+  const [addingRegular, setAddingRegular] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
   const [editing, setEditing] = useState<Session | null>(null);
   const [dragging, setDragging] = useState<Session | null>(null);
+  const [localSessions, setLocalSessions] = useState(sessions);
+  const [pendingMoveId, setPendingMoveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingMoveId) setLocalSessions(sessions);
+  }, [sessions, pendingMoveId]);
 
   const weeks = useMemo(() => {
     const set = new Set(teachingDays.map((d) => d.week));
@@ -72,13 +193,13 @@ export function SemesterView({
 
   const lensOptions = useMemo(() => {
     const m = new Map<string, string>();
-    for (const s of sessions) {
+    for (const s of localSessions) {
       if (lens === "section" && s.section) m.set(s.section._id, `Section ${s.section.number}`);
       if (lens === "faculty" && s.faculty) m.set(s.faculty._id, s.faculty.name);
       if (lens === "room" && s.room) m.set(s.room._id, `${s.room.block}-${s.room.code}`);
     }
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [sessions, lens]);
+  }, [localSessions, lens]);
 
   const daysThisWeek = useMemo(
     () => teachingDays.filter((d) => d.week === week),
@@ -87,13 +208,13 @@ export function SemesterView({
 
   const visible = useMemo(() => {
     const dates = new Set(daysThisWeek.map((d) => d.date));
-    return sessions.filter((s) => {
+    return localSessions.filter((s) => {
       if (!dates.has(s.date)) return false;
       if (!focus) return true;
       const owner = lens === "section" ? s.section?._id : lens === "faculty" ? s.faculty?._id : s.room?._id;
       return owner === focus;
     });
-  }, [sessions, daysThisWeek, focus, lens]);
+  }, [localSessions, daysThisWeek, focus, lens]);
 
   /** date:slotOrder → session, plus the cells a multi-period session covers. */
   const { grid, covered } = useMemo(() => {
@@ -107,15 +228,16 @@ export function SemesterView({
   }, [visible]);
 
   const counts = useMemo(() => {
-    const regular = sessions.filter((s) => s.type === "REGULAR").length;
-    return { regular, extra: sessions.length - regular };
-  }, [sessions]);
+    const regular = localSessions.filter((s) => s.type === "REGULAR").length;
+    return { regular, extra: localSessions.length - regular };
+  }, [localSessions]);
 
   async function removeSession(id: string) {
     setBusy(true);
     try {
       await api(`/api/timetables/${timetableId}/sessions`, { method: "DELETE", json: { sessionId: id } });
       push("Class removed.");
+      setPendingDelete(null);
       await onChanged();
     } catch (e) {
       push((e as Error).message, "error");
@@ -126,25 +248,48 @@ export function SemesterView({
   }
 
   async function moveSession(session: Session, date: string, slotOrder: number, room?: string) {
+    if (session.date === date && session.slotOrder === slotOrder && (!room || room === session.room?._id)) {
+      setDragging(null);
+      return;
+    }
+    const previous = localSessions;
+    const targetDay = teachingDays.find((day) => day.date === date)?.weekday ?? session.day;
+    const targetRoom = room ? rooms.find((candidate) => candidate._id === room) : session.room;
+    setLocalSessions((current) => current.map((candidate) =>
+      candidate._id === session._id
+        ? { ...candidate, date, day: targetDay, slotOrder, room: targetRoom }
+        : candidate
+    ));
+    setPendingMoveId(session._id);
+    setDragging(null);
     setBusy(true);
     try {
       await api(`/api/timetables/${timetableId}/sessions`, {
-        method: "PATCH",
-        json: { sessionId: session._id, date, slotOrder, room },
+        method: "PATCH", json: { sessionId: session._id, date, slotOrder, room },
       });
       push("Class moved.");
       setEditing(null);
       await onChanged();
     } catch (e) {
-      push((e as Error).message, "error");
+      setLocalSessions(previous);
+      const err = e as Error & { extra?: { reasons?: string[] } };
+      push(err.extra?.reasons?.join(" ") ?? err.message, "error");
     } finally {
       setBusy(false);
+      setPendingMoveId(null);
     }
   }
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="relative mb-4 rounded-lg border border-line bg-surface p-3 sm:p-4">
+      {busy && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden rounded-t-lg bg-line"
+          role="status" aria-label="Saving timetable change">
+          <div className="timetable-sync-bar h-full w-1/3 bg-accent" />
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
         <Segmented<Lens>
           value={lens}
           onChange={(v) => { setLens(v); setFocus(""); }}
@@ -156,19 +301,19 @@ export function SemesterView({
         />
         <div className="w-44">
           <Select value={focus} onChange={(e) => setFocus(e.target.value)} aria-label="Focus">
-            <option value="">Select one {lens === "faculty" ? "faculty member" : lens}</option>
+            <option value="">Select one {lens}</option>
             {lensOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
         </div>
 
-        <div className="h-5 w-px bg-rule-strong" />
+        <div className="mx-0.5 hidden h-5 w-px bg-rule-strong/70 sm:block" />
 
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" aria-label="Previous week"
             disabled={week <= weeks[0]} onClick={() => setWeek((w) => Math.max(weeks[0], w - 1))}>
             <ChevronLeft className="size-3.5" />
           </Button>
-          <span className="min-w-[7.5rem] text-center font-mono text-micro tnum">
+          <span className="min-w-[7.5rem] text-center font-mono text-micro font-semibold uppercase tracking-[0.08em] tnum">
             Week {week} of {weeks.length}
           </span>
           <Button variant="ghost" size="sm" aria-label="Next week"
@@ -178,16 +323,28 @@ export function SemesterView({
           </Button>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex w-full items-center justify-between gap-2 border-t border-line/70 pt-2.5 sm:w-auto sm:border-t-0 sm:pt-0">
           <span className="font-mono text-micro text-muted tnum">
             {counts.regular} regular{counts.extra > 0 ? ` · ${counts.extra} extra` : ""}
           </span>
+          {busy && (
+            <span className="inline-flex items-center gap-1.5 text-micro text-muted" role="status">
+              <span className="size-3 animate-spin rounded-full border border-muted/30 border-t-accent" />
+              Saving
+            </span>
+          )}
           {!readOnly && (
-            <Button size="sm" variant="secondary" onClick={() => setAddingExtra(true)}>
-              <CalendarPlus className="size-3.5" /> Extra class
-            </Button>
+            <>
+              <Button size="sm" variant="secondary" onClick={() => setAddingRegular(true)}>
+                <Plus className="size-3.5" /> Add regular class
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setAddingExtra(true)}>
+                <CalendarPlus className="size-3.5" /> Extra class
+              </Button>
+            </>
           )}
         </div>
+      </div>
       </div>
 
       {daysThisWeek.length === 0 ? (
@@ -198,15 +355,15 @@ export function SemesterView({
           </p>
         </div>
       ) : (
-        <div className="thin-scroll overflow-x-auto rounded-md border border-rule bg-sheet shadow-sheet">
+        <div className="thin-scroll overflow-x-auto rounded-lg border border-line bg-surface">
           <table className="w-full min-w-[48rem] border-collapse">
             <thead>
               <tr>
-                <th className="sticky left-0 z-20 w-[74px] border-b border-r border-rule bg-sheet px-2 py-2 text-left">
-                  <span className="label">Period</span>
+                <th className="sticky left-0 z-20 w-[86px] border-b border-r border-rule bg-ground/90 px-3 py-3 text-left">
+                  <span className="eyebrow">Time</span>
                 </th>
                 {daysThisWeek.map((d) => (
-                  <th key={d.date} className="border-b border-r border-rule bg-sheet px-2 py-2 text-left last:border-r-0">
+                  <th key={d.date} className="border-b border-r border-rule bg-ground/70 px-3 py-3 text-left last:border-r-0">
                     <span className="block text-[0.8125rem] font-semibold tracking-[-0.01em]">
                       {DAY_SHORT[d.weekday].charAt(0)}{DAY_SHORT[d.weekday].slice(1).toLowerCase()}
                     </span>
@@ -223,7 +380,7 @@ export function SemesterView({
             <tbody className="sheet-grid">
               {ordered.map((slot) => (
                 <tr key={slot.order}>
-                  <th scope="row" className="sticky left-0 z-10 border-b border-r border-rule bg-sheet px-2 py-1.5 text-left align-top">
+                  <th scope="row" className="sticky left-0 z-10 border-b border-r border-rule bg-white px-3 py-2 text-left align-top">
                     <span className="block font-mono text-[0.68rem] font-medium leading-tight tnum">{prettyTime(slot.start)}</span>
                     <span className="block font-mono text-[0.62rem] leading-tight text-muted tnum">{prettyTime(slot.end)}</span>
                   </th>
@@ -239,24 +396,38 @@ export function SemesterView({
                       const s = grid.get(key);
 
                       if (!s) {
-                        return <td key={key} className="h-14 border-b border-r border-rule/70 last:border-r-0" />;
+                        return (
+                          <td key={key}
+                            onDragOver={(e) => { if (dragging) e.preventDefault(); }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (dragging) void moveSession(dragging, d.date, slot.order, dragging.room?._id);
+                            }}
+                            className="h-16 border-b border-r border-rule/70 bg-white/35 last:border-r-0" />
+                        );
                       }
 
                       return (
                         <td key={key} rowSpan={s.duration}
                           className="border-b border-r border-rule/70 p-[3px] align-top last:border-r-0">
-                            <div
-                              draggable={!readOnly}
-                              onDragStart={() => setDragging(s)}
-                              onDragEnd={() => setDragging(null)}
-                              onDragOver={(e) => e.preventDefault()}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                if (dragging && dragging._id !== s._id) void moveSession(dragging, s.date, s.slotOrder, s.room?._id);
-                              }}
-                              onClick={() => !readOnly && setEditing(s)}
-                              className={cn(
-                            "group relative flex h-full min-h-[3.1rem] flex-col overflow-hidden rounded-sm border bg-sheet py-1 pl-2 pr-1.5",
+                          <div
+                            draggable={!readOnly}
+                            onDragStart={(e) => {
+                              e.dataTransfer.effectAllowed = "move";
+                              e.dataTransfer.setData("text/plain", s._id);
+                              setDragging(s);
+                            }}
+                            onDragEnd={() => setDragging(null)}
+                            onDragOver={(e) => { if (dragging) e.preventDefault(); }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (dragging && dragging._id !== s._id) {
+                                void moveSession(dragging, s.date, s.slotOrder, dragging.room?._id);
+                              }
+                            }}
+                            onClick={() => !readOnly && setEditing(s)}
+                            className={cn(
+                            "group relative flex h-full min-h-[4.25rem] flex-col overflow-hidden rounded-md border bg-white px-2.5 py-2 shadow-[0_3px_9px_-7px_rgba(29,43,68,.7)] transition-all hover:-translate-y-px hover:border-lapis/40 hover:shadow-sheet",
                             s.type === "EXTRA" ? "border-dashed border-ochre" : "border-rule-strong/60"
                           )}>
                             <span className={cn("absolute inset-y-0 left-0 w-[3px]", BAR[s.kind] ?? BAR.LECTURE)} />
@@ -266,21 +437,21 @@ export function SemesterView({
                               {s.type === "EXTRA" && <span className="font-sans text-[0.55rem] uppercase text-ochre">extra</span>}
                             </span>
                             <span className="truncate text-[0.7rem] leading-tight text-muted">
-                              {lens === "faculty" ? s.section ? `Section ${s.section.number}` : "" : s.faculty?.name}
+                              {lens === "faculty" ? s.section ? `§${s.section.number}` : "" : s.faculty?.name}
                             </span>
                             <span className="mt-auto flex flex-wrap items-center gap-x-1.5 pt-0.5 text-[0.65rem] leading-tight text-muted">
                               {lens !== "room" && s.room && (
                                 <span className="font-mono text-graphite-500">{s.room.block}-{s.room.code}</span>
                               )}
                               {lens !== "section" && s.section && (
-                                <span className="font-mono text-graphite-500">Section {s.section.number}</span>
+                                <span className="font-mono text-graphite-500">§{s.section.number}</span>
                               )}
                             </span>
                             {!readOnly && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); setPendingDelete(s); }} disabled={busy}
+                                onClick={(e) => { e.stopPropagation(); setPendingDelete(s); }} disabled={busy || pendingMoveId === s._id}
                                 aria-label="Remove this class"
-                                className="absolute right-0.5 top-0.5 rounded-xs p-0.5 text-muted opacity-0 transition-opacity hover:text-claret group-hover:opacity-100">
+                                className="absolute right-0.5 top-0.5 rounded-xs p-0.5 text-muted opacity-0 transition-opacity hover:text-accent group-hover:opacity-100">
                                 <Trash2 className="size-3" />
                               </button>
                             )}
@@ -299,7 +470,7 @@ export function SemesterView({
       <p className="mt-2 px-1 text-micro text-muted">
         These are the real dated classes. Dashed borders are ad-hoc extra classes,
         which never count towards an assignment&apos;s required session total.
-        A pin marks a session placed or moved by hand — it survives re-expansion of the weekly pattern.
+        A pin marks a session placed or moved by hand.
       </p>
 
       <ExtraClassModal
@@ -308,77 +479,43 @@ export function SemesterView({
         timetableId={timetableId}
         slots={ordered}
         rooms={rooms}
-        sessions={sessions}
+        sessions={localSessions}
         onAdded={async () => { setAddingExtra(false); await onChanged(); }}
       />
-      <Modal
-        open={!!pendingDelete}
-        onClose={() => setPendingDelete(null)}
-        title={pendingDelete?.type === "EXTRA" ? "Remove extra class?" : "Remove regular class?"}
-        description={pendingDelete?.type === "EXTRA"
-          ? "This removes only the one-off class and does not change regular session counts."
-          : "This reduces the assignment's regular count. The timetable must be repaired and revalidated before publishing."}
-        footer={<>
-          <Button variant="ghost" onClick={() => setPendingDelete(null)}>Cancel</Button>
-          <Button variant="primary" onClick={() => {
-            if (pendingDelete) void removeSession(pendingDelete._id);
-            setPendingDelete(null);
-          }}>Remove class</Button>
-        </>}
-      ><div /></Modal>
-      <EditSessionModal
-        session={editing}
-        open={!!editing}
-        onClose={() => setEditing(null)}
+      <RegularClassModal
+        open={addingRegular}
+        onClose={() => setAddingRegular(false)}
+        timetableId={timetableId}
+        assignments={assignments}
+        teachingDays={teachingDays}
         slots={ordered}
         rooms={rooms}
+        onAdded={async () => { setAddingRegular(false); await onChanged(); }}
+      />
+      <Modal open={!!pendingDelete} onClose={() => setPendingDelete(null)}
+        title={pendingDelete?.type === "REGULAR" ? "Remove regular class?" : "Remove extra class?"}
+        description={pendingDelete?.type === "REGULAR"
+          ? "This reduces the assignment's regular-session count and blocks publishing until the timetable is repaired and revalidated."
+          : "This removes only the one-off extra class; regular session counts are unchanged."}
+        footer={<><Button variant="ghost" onClick={() => setPendingDelete(null)}>Cancel</Button>
+          <Button variant="primary" onClick={() => pendingDelete && void removeSession(pendingDelete._id)}>Remove class</Button></>}>
+        {pendingDelete && <div className="space-y-1 text-sm">
+          <p className="font-mono">{pendingDelete.subject?.code}</p>
+          <p>Section {pendingDelete.section?.number}</p>
+          <p>{pendingDelete.date} · period {pendingDelete.slotOrder}</p>
+        </div>}
+      </Modal>
+      <EditSessionModal
+        open={!!editing}
+        session={editing}
+        teachingDays={teachingDays}
+        slots={ordered}
+        rooms={rooms}
+        onClose={() => setEditing(null)}
         onSave={(date, slot, room) => editing ? moveSession(editing, date, slot, room) : Promise.resolve()}
         saving={busy}
       />
     </>
-  );
-}
-
-function EditSessionModal({
-  session, open, onClose, slots, rooms, onSave, saving,
-}: {
-  session: Session | null;
-  open: boolean;
-  onClose: () => void;
-  slots: Slot[];
-  rooms: { _id: string; block: string; code: string }[];
-  onSave: (date: string, slot: number, room: string) => Promise<void>;
-  saving: boolean;
-}) {
-  const [date, setDate] = useState("");
-  const [slot, setSlot] = useState("");
-  const [room, setRoom] = useState("");
-  useEffect(() => {
-    if (session) {
-      setDate(session.date);
-      setSlot(String(session.slotOrder));
-      setRoom(session.room?._id ?? "");
-    }
-  }, [session]);
-  return (
-    <Modal open={open} onClose={onClose} title={session?.type === "EXTRA" ? "Edit extra class" : "Edit regular class"}
-      description="The server rechecks calendar, room, faculty, section, and contiguous-period constraints before saving."
-      footer={<>
-        <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button variant="primary" onClick={() => void onSave(date, Number(slot), room)} loading={saving}>Save changes</Button>
-      </>}>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        <Select label="Period" value={slot} onChange={(e) => setSlot(e.target.value)}>
-          <option value="">Choose a period</option>
-          {slots.filter((s) => s.kind === "CLASS").map((s) => <option key={s.order} value={s.order}>{s.label}</option>)}
-        </Select>
-        <Select label="Room" value={room} onChange={(e) => setRoom(e.target.value)}>
-          <option value="">Choose a room</option>
-          {rooms.map((r) => <option key={r._id} value={r._id}>{r.block}-{r.code}</option>)}
-        </Select>
-      </div>
-    </Modal>
   );
 }
 
@@ -507,10 +644,10 @@ function ExtraClassModal({
       </div>
 
       {error && (
-        <div role="alert" className="mt-4 rounded border border-claret-line bg-claret-soft px-3 py-2">
-          <p className="text-[0.8125rem] font-medium text-claret">This class cannot be added:</p>
+        <div role="alert" className="mt-4 rounded border border-line bg-surface/6 px-3 py-2">
+          <p className="text-[0.8125rem] font-medium text-accent">This class cannot be added:</p>
           <ul className="mt-1 space-y-0.5">
-            {error.map((r, i) => <li key={i} className="text-[0.8125rem] text-claret">{r}</li>)}
+            {error.map((r, i) => <li key={i} className="text-[0.8125rem] text-accent">{r}</li>)}
           </ul>
         </div>
       )}

@@ -4,9 +4,8 @@ import { cn } from "@/lib/utils";
 import type { InputHTMLAttributes, SelectHTMLAttributes, ReactNode } from "react";
 
 const control =
-  "w-full rounded border border-rule-strong/70 bg-white text-sm text-ink " +
-  "transition-colors placeholder:text-muted/50 hover:border-graphite-400 " +
-  "focus:border-claret disabled:bg-ground/60 disabled:text-muted";
+  "w-full rounded-sm border border-line/70 bg-surface text-sm text-ink transition-all placeholder:text-muted/50 " +
+  "hover:border-accent/50 focus:border-accent focus:ring-4 focus:ring-accent/10 disabled:bg-canvas/60 disabled:text-muted";
 
 export function Label({ children, hint }: { children: ReactNode; hint?: ReactNode }) {
   return (
@@ -23,8 +22,8 @@ export function Input({
   return (
     <label className="block">
       {label && <Label hint={hint}>{label}</Label>}
-      <input {...rest} className={cn(control, "h-9 px-2.5", error && "border-claret", className)} />
-      {error && <p className="mt-1 text-micro text-claret">{error}</p>}
+      <input {...rest} className={cn(control, "h-9 px-2.5", error && "border-accent", className)} />
+      {error && <p className="mt-1 text-micro text-accent">{error}</p>}
     </label>
   );
 }
@@ -57,7 +56,7 @@ export function Toggle({
     <button
       type="button" role="switch" aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 rounded border border-rule-strong/70 bg-white px-3 py-2.5 text-left transition-colors hover:border-graphite-400"
+      className="flex w-full items-center justify-between gap-4 rounded-sm border border-line/70 bg-surface px-3.5 py-3 text-left transition-colors hover:border-accent/50"
     >
       <span className="min-w-0">
         <span className="block text-sm font-medium">{label}</span>
@@ -65,10 +64,10 @@ export function Toggle({
       </span>
       <span className={cn(
         "relative h-[18px] w-8 shrink-0 rounded-full transition-colors duration-200",
-        checked ? "bg-moss" : "bg-graphite-400/35"
+        checked ? "bg-accent" : "bg-ink/30"
       )}>
         <span className={cn(
-          "absolute top-[2px] size-3.5 rounded-full bg-white shadow-hair transition-all duration-200 ease-physical",
+          "absolute top-[2px] size-3.5 rounded-full bg-white transition-all duration-200 ease-physical",
           checked ? "left-[16px]" : "left-[2px]"
         )} />
       </span>
@@ -136,7 +135,7 @@ export function TagInput({
             {tag}
             <button type="button" aria-label={`Remove ${tag}`}
               onClick={() => onChange(current.filter((t) => t !== tag))}
-              className="text-muted transition-colors hover:text-claret">×</button>
+              className="text-muted transition-colors hover:text-accent">×</button>
           </span>
         ))}
         <input
@@ -195,7 +194,7 @@ export function MultiSelect({
               <label key={o.value}
                 className="flex cursor-pointer items-center gap-2 border-b border-rule/70 px-2.5 py-1.5 text-[0.8125rem] last:border-b-0 hover:bg-ink/[.02]">
                 <input type="checkbox" checked={on} onChange={() => toggle(o.value)}
-                  className="size-3.5 accent-claret" />
+                  className="size-3.5 accent-accent" />
                 <span className={on ? "font-medium" : "text-muted"}>{o.label}</span>
               </label>
             );

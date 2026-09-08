@@ -19,7 +19,10 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true); setError(null);
     try {
-      await api("/api/auth/login", { method: "POST", json: { email, password } });
+      await api("/api/auth/login", {
+        method: "POST",
+        json: { email, password, surface: "university" },
+      });
       router.push(next);
       router.refresh();
     } catch (err) {
@@ -35,7 +38,7 @@ function LoginForm() {
       <Input label="Password" type="password" autoComplete="current-password" required
         value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
       {error && (
-        <p role="alert" className="rounded border border-claret-line bg-claret-soft px-3 py-2 text-[0.8125rem] text-claret">
+        <p role="alert" className="rounded border border-line bg-surface/6 px-3 py-2 text-[0.8125rem] text-accent">
           {error}
         </p>
       )}
@@ -49,22 +52,12 @@ export default function LoginPage() {
     <main className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
       {/* Tool chrome, with a faint drawing grid — the surface being signed into */}
       <aside className="chrome relative hidden flex-col justify-between overflow-hidden p-10 text-white lg:flex">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.14]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)",
-            backgroundSize: "26px 26px",
-            maskImage: "radial-gradient(85% 65% at 30% 45%, #000 20%, transparent 100%)",
-            WebkitMaskImage: "radial-gradient(85% 65% at 30% 45%, #000 20%, transparent 100%)",
-          }}
-        />
-        <span className="relative font-display text-[0.95rem] tracking-[-0.01em]">Chronos</span>
+        <span className="relative font-sans text-sm tracking-[-0.01em]">Chronos</span>
         <div className="relative max-w-sm">
           <p className="mb-3 font-mono text-[0.62rem] uppercase tracking-[0.14em] text-white/35">
             Timetable administration
           </p>
-          <h1 className="font-display text-[2.4rem] leading-[1.05] tracking-[-0.028em]">
+          <h1 className="font-sans text-2xl leading-tight tracking-tight">
             Build the week on one sheet.
           </h1>
           <p className="mt-4 text-[0.875rem] leading-relaxed text-white/50">
@@ -78,16 +71,24 @@ export default function LoginPage() {
         </Link>
       </aside>
 
-      <section className="flex items-center justify-center bg-ground px-5 py-14">
+      <section className="relative flex items-center justify-center overflow-hidden bg-ground px-5 py-14">
         <div className="w-full max-w-[21rem]">
-          <span className="font-display text-[0.95rem] tracking-[-0.01em] lg:hidden">Chronos</span>
-          <h2 className="mt-6 font-display text-2xl tracking-[-0.02em] lg:mt-0">Sign in</h2>
-          <p className="mb-6 mt-1.5 text-[0.8125rem] text-muted">
+          <span className="font-sans text-sm tracking-[-0.01em] lg:hidden">Chronos</span>
+          <div className="relative rounded-lg border border-line bg-surface p-6">
+          <h2 className="font-sans text-2xl tracking-[-0.01em]">Sign in</h2>
+          <p className="mb-6 mt-2 text-[0.8125rem] text-muted">
             Administrator access to the timetable workbench.
           </p>
           <Suspense fallback={null}><LoginForm /></Suspense>
+          </div>
           <p className="mt-6 text-center text-[0.8125rem] text-muted lg:hidden">
             <Link href="/" className="transition-colors hover:text-ink">← Public board</Link>
+          </p>
+          <p className="mt-4 text-center text-[0.8125rem] text-muted">
+            Platform Admin?{" "}
+            <Link href="/adminLogin" className="font-medium text-ink underline underline-offset-2">
+              Sign in here
+            </Link>
           </p>
         </div>
       </section>

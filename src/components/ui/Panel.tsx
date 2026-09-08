@@ -7,7 +7,7 @@ export function Panel({
 }: { children: ReactNode; className?: string; flush?: boolean }) {
   return (
     <section className={cn(
-      "rounded-md border border-rule bg-sheet shadow-hair",
+      "rounded-md border border-line bg-surface",
       !flush && "p-4",
       className
     )}>
@@ -20,8 +20,8 @@ export function PanelHead({
   title, action, className,
 }: { title: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <div className={cn("mb-3 flex items-center justify-between gap-3", className)}>
-      <h3 className="label">{title}</h3>
+    <div className={cn("mb-4 flex items-center justify-between gap-3", className)}>
+      <h3 className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted">{title}</h3>
       {action}
     </div>
   );
@@ -35,7 +35,7 @@ export function Stat({
     <div>
       <p className="label">{label}</p>
       <p className={cn(
-        "mt-1.5 font-display text-3xl leading-none tracking-[-0.02em] tnum",
+        "mt-2 font-sans text-2xl leading-none tracking-[-0.01em] tnum text-ink",
         tone === "claret" && "text-claret", tone === "moss" && "text-moss"
       )}>
         {value}

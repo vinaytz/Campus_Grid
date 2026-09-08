@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export function Table({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("thin-scroll overflow-x-auto rounded-md border border-rule bg-sheet shadow-hair", className)}>
+    <div className={cn("thin-scroll overflow-x-auto rounded-md border border-rule/80 bg-white/90 shadow-sheet", className)}>
       <table className="w-full border-collapse text-[0.8125rem]">{children}</table>
     </div>
   );
@@ -12,7 +12,7 @@ export function Table({ children, className }: { children: ReactNode; className?
 export function TH({ children, className }: { children?: ReactNode; className?: string }) {
   return (
     <th className={cn(
-      "sticky top-0 z-10 whitespace-nowrap border-b border-rule bg-sheet/95 px-3 py-2",
+      "sticky top-0 z-10 whitespace-nowrap border-b border-rule bg-ground/80 px-4 py-3",
       "text-left text-label font-medium uppercase text-muted backdrop-blur",
       className
     )}>
@@ -22,7 +22,7 @@ export function TH({ children, className }: { children?: ReactNode; className?: 
 }
 
 export function TD({ children, className }: { children?: ReactNode; className?: string }) {
-  return <td className={cn("border-b border-rule/70 px-3 py-2 align-middle", className)}>{children}</td>;
+  return <td className={cn("border-b border-rule/70 px-4 py-3 align-middle", className)}>{children}</td>;
 }
 
 export function EmptyState({
@@ -34,7 +34,7 @@ export function EmptyState({
         {icon ?? <span className="font-mono text-sm">∅</span>}
       </div>
       <div>
-        <p className="font-display text-base tracking-[-0.01em]">{title}</p>
+        <p className="font-sans text-base tracking-[-0.01em] text-ink">{title}</p>
         <p className="mx-auto mt-1 max-w-sm text-[0.8125rem] leading-relaxed text-muted">{hint}</p>
       </div>
       {action}

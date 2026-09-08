@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter_Tight, Newsreader, JetBrains_Mono } from "next/font/google";
+import { Inter_Tight, JetBrains_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
@@ -8,10 +8,6 @@ import "./globals.css";
  * tipping into a magazine. Inter Tight sets the interface at small sizes, and
  * every code, ID, room and time is monospaced, because those are data.
  */
-const display = Newsreader({
-  subsets: ["latin"], weight: ["400", "500", "600"], style: ["normal"],
-  variable: "--font-display", display: "swap",
-});
 const sans = Inter_Tight({
   subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-sans", display: "swap",
 });
@@ -28,7 +24,7 @@ export const viewport: Viewport = { themeColor: "#14171C" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
         <ToastProvider>{children}</ToastProvider>
       </body>

@@ -27,9 +27,9 @@ export const CALENDAR_EXCEPTION_KINDS = [
 
 /** Session colours keyed by kind — the canvas legend. */
 export const KIND_STYLE: Record<string, { chip: string; bar: string }> = {
-  LECTURE: { chip: "bg-lapis-soft text-lapis", bar: "bg-lapis" },
-  LAB: { chip: "bg-moss-soft text-moss", bar: "bg-moss" },
-  TUTORIAL: { chip: "bg-ochre-soft text-ochre", bar: "bg-ochre" },
+  LECTURE: { chip: "bg-accent/10 text-ink", bar: "bg-accent" },
+  LAB: { chip: "bg-accent/10 text-ink", bar: "bg-accent/70" },
+  TUTORIAL: { chip: "bg-accent/10 text-ink", bar: "bg-accent/40" },
 };
 
 export const SESSION_COOKIE = "ttms_session";

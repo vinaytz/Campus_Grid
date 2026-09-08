@@ -7,7 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Table, TH, TD, EmptyState } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import { PageHeader } from "./PageHeader";
-import { Plus } from "lucide-react";
+import { Plus, Search, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type FieldDef = {
@@ -52,7 +52,6 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   const [editing, setEditing] = useState<Partial<T> | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<T | null>(null);
 
   const listUrl = `/api/admin/${config.resource}${q ? `?q=${encodeURIComponent(q)}` : ""}`;
   const { data, loading, reload } = useResource<T[]>(listUrl);
@@ -124,6 +123,7 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   }
 
   async function remove(row: T) {
+    if (!confirm(`Delete this ${config.singular.toLowerCase()}? This can't be undone.`)) return;
     try {
       await api(`/api/admin/${config.resource}/${row._id}`, { method: "DELETE" });
       push(`${config.singular} deleted.`);
@@ -145,13 +145,17 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
       />
 
       {config.searchable !== false && (
-        <div className="mb-3 flex items-center gap-3">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${config.title.toLowerCase()}`}
-            className="h-9 w-full max-w-xs rounded border border-rule-strong/70 bg-sheet px-2.5 text-sm transition-colors placeholder:text-muted/55 hover:border-graphite-400 focus:border-claret"
-          />
+        <div className="mb-4 flex flex-wrap items-center gap-2.5">
+          <div className="relative w-full max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted/60" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={`Search ${config.title.toLowerCase()}`}
+              className="h-10 w-full rounded-md border border-rule-strong/70 bg-white/90 pl-9 pr-3 text-sm shadow-[0_1px_2px_rgba(29,43,68,.03)] transition-all placeholder:text-muted/55 hover:border-lapis/50 focus:border-lapis focus:ring-4 focus:ring-lapis/10"
+            />
+          </div>
+          <Button variant="secondary" size="sm"><SlidersHorizontal className="size-3.5" /> Filters</Button>
           <span className="whitespace-nowrap font-mono text-micro text-muted">
             {loading ? "…" : `${rows.length} record${rows.length === 1 ? "" : "s"}`}
           </span>
@@ -183,7 +187,7 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
                 <TD className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button size="xs" variant="ghost" onClick={() => openEdit(row)}>Edit</Button>
-                    <Button size="xs" variant="ghost" className="hover:text-claret" onClick={() => setDeleting(row)}>
+                    <Button size="xs" variant="ghost" className="hover:text-claret" onClick={() => remove(row)}>
                       Delete
                     </Button>
                   </div>
@@ -267,19 +271,6 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
           </p>
         )}
       </Modal>
-      <Modal
-        open={!!deleting}
-        onClose={() => setDeleting(null)}
-        title={`Delete ${config.singular.toLowerCase()}?`}
-        description="This cannot be undone and may affect related scheduling data."
-        footer={<>
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="primary" onClick={() => {
-            if (deleting) void remove(deleting);
-            setDeleting(null);
-          }}>Delete</Button>
-        </>}
-      ><div /></Modal>
     </>
   );
 }

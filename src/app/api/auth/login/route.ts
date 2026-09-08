@@ -7,11 +7,17 @@ import { ok, fail, handleError, parseBody } from "@/lib/api";
 export async function POST(req: Request) {
   try {
     await connectDB();
-    const { email, password } = await parseBody(req, loginSchema);
+    const { email, password, surface } = await parseBody(req, loginSchema);
 
     const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash");
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       return fail("That email and password don't match an account.", 401);
+    }
+    if (surface === "platform" && user.role !== "PLATFORM_ADMIN") {
+      return fail("Platform administrator access is required.", 403);
+    }
+    if (surface === "university" && (user.role === "PLATFORM_ADMIN" || !user.universityId)) {
+      return fail("Use the Platform Admin sign-in page for this account.", 403);
     }
 
     let universityActive = true;

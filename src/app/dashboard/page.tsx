@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { motion } from "framer-motion";
+// framer-motion removed per motion policy; interactions remain user-driven
 import { ArrowRight, Check, CalendarRange, AlertTriangle } from "lucide-react";
 import { useResource } from "@/hooks/useApi";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -72,20 +72,21 @@ export default function Overview() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {tiles.map((t, i) => (
-          <motion.div key={t.label}
-            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.24, delay: i * 0.03, ease: [0.2, 0.9, 0.3, 1] }}>
+          <div key={t.label}>
             <Link href={t.href}>
-              <Panel className="transition-colors duration-150 hover:border-graphite-400">
+              <Panel className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40">
+                <span className="absolute right-0 top-0 size-20 rounded-full bg-accent/5 blur-2xl" />
                 <Stat label={t.label} value={loading ? "—" : t.value ?? 0} />
+                <span className="mt-5 block font-mono text-[0.62rem] uppercase tracking-[0.12em] text-muted/70">Open directory →</span>
               </Panel>
             </Link>
-          </motion.div>
+          </div>
         ))}
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-[1.2fr_1fr]">
-        <Panel>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.3fr_.7fr]">
+        <Panel className="relative overflow-hidden">
+          <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-lapis/10 blur-3xl" />
           <PanelHead
             title="Semester load"
             action={data?.semester
@@ -94,7 +95,7 @@ export default function Overview() {
                 </Link>
               : undefined}
           />
-          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+          <div className="relative flex flex-wrap items-end gap-x-12 gap-y-5">
             <Stat
               label="Sessions to place"
               value={loading ? "—" : data?.semesterSessions ?? 0}
@@ -113,7 +114,7 @@ export default function Overview() {
           </div>
 
           {data && data.capacity > 0 && (
-            <div className="rule-t mt-4 pt-3">
+            <div className="relative rule-t mt-6 pt-4">
               <div className="mb-1.5 flex items-baseline justify-between">
                 <span className="label">Pressure on the calendar</span>
                 <span className="font-mono text-[0.68rem] text-muted tnum">{pressure}%</span>
@@ -143,15 +144,15 @@ export default function Overview() {
           )}
         </Panel>
 
-        <Panel>
+        <Panel className="bg-graphite-950 text-white shadow-lift">
           <PanelHead
             title="Setup"
-            action={<span className="font-mono text-[0.68rem] text-muted tnum">{done}/{SETUP.length}</span>}
+            action={<span className="font-mono text-[0.68rem] text-white/45 tnum">{done}/{SETUP.length}</span>}
           />
           {ready ? (
             <div>
               <Badge tone="moss"><Check className="size-2.5" /> Ready to generate</Badge>
-              <p className="mt-3 text-[0.8125rem] leading-relaxed text-muted">
+              <p className="mt-3 text-[0.8125rem] leading-relaxed text-white/55">
                 Every prerequisite is in place. Generate a semester draft, review it week
                 by week, then publish.
               </p>
@@ -171,7 +172,7 @@ export default function Overview() {
                       </span>
                       <span className={cn(
                         "transition-colors",
-                        complete ? "text-muted line-through" : "text-ink group-hover:text-claret"
+                        complete ? "text-white/35 line-through" : "text-white/80 group-hover:text-white"
                       )}>
                         {s.label}
                       </span>

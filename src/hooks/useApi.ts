@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; extra?: unknown };
+export type ReloadOptions = { preserveData?: boolean };
 
 export async function api<T = unknown>(
   url: string,
@@ -26,16 +27,16 @@ export function useResource<T>(url: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async ({ preserveData = false }: ReloadOptions = {}) => {
     if (!url) return;
-    setLoading(true);
+    if (!preserveData) setLoading(true);
     setError(null);
     try {
       setData(await api<T>(url));
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (!preserveData) setLoading(false);
     }
   }, [url]);
 

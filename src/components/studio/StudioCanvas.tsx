@@ -39,7 +39,7 @@ function DropCell({
         />
       )}
       {isOver && !allowed && verdict && !verdict.ok && (
-        <div className="pointer-events-none absolute inset-x-1 top-1 z-20 rounded-xs bg-graphite-900 px-1.5 py-1 text-[0.65rem] leading-snug text-white shadow-lift">
+        <div className="pointer-events-none absolute inset-x-1 top-1 z-20 rounded-xs bg-ink px-1.5 py-1 text-[0.65rem] leading-snug text-white shadow-lift">
           {verdict.reason}
         </div>
       )}

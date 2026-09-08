@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+// framer-motion removed per motion policy; interaction-driven rendering only
 import { Lock, LockOpen, Trash2, DoorOpen, ArrowRightLeft, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { availableRooms, type Candidate, type LiteEntry, type LiteRoom } from "@/lib/scheduler/validate";
@@ -67,7 +67,7 @@ export function ContextMenu({
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-2 rounded-xs px-2 py-1.5 text-left text-[0.8125rem] transition-colors",
-        danger ? "text-claret hover:bg-claret-soft" : "text-ink hover:bg-ink/[.055]"
+      danger ? "text-accent hover:bg-accent/8" : "text-ink hover:bg-ink/[.055]"
       )}
     >
       {icon}{label}
@@ -75,12 +75,10 @@ export function ContextMenu({
   );
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.12, ease: [0.2, 0.9, 0.3, 1] }}
       style={{ left: x, top: y }}
-      className="fixed z-[70] w-56 rounded-md border border-rule bg-sheet p-1 shadow-lift"
+      className="fixed z-[70] w-56 rounded-md border border-line bg-surface p-1 shadow-lift"
     >
       <div className="border-b border-rule px-2 pb-1.5 pt-1">
         <p className="font-mono text-[0.7rem] font-semibold">{entry.subject.code}</p>
@@ -105,7 +103,7 @@ export function ContextMenu({
               <span className="w-14 shrink-0 font-mono text-[0.72rem]">{room.block}-{room.code}</span>
               <span className="font-mono text-micro text-muted tnum">{room.capacity}</span>
               <span className="ml-auto truncate text-micro text-muted">
-                {room._id === entry.room._id ? <Check className="size-3 text-claret" /> : free ? "" : reason}
+                {room._id === entry.room._id ? <Check className="size-3 text-accent" /> : free ? "" : reason}
               </span>
             </button>
           ))}
@@ -131,6 +129,6 @@ export function ContextMenu({
           To change who teaches this, edit it under Teaching load.
         </p>
       )}
-    </motion.div>
+    </div>
   );
 }

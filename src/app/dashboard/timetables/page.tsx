@@ -30,7 +30,6 @@ export default function TimetablesPage() {
   const [name, setName] = useState("");
   const [semester, setSemester] = useState("");
   const [busy, setBusy] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
 
   async function generate() {
     setBusy(true);
@@ -65,6 +64,7 @@ export default function TimetablesPage() {
   }
 
   async function remove(id: string) {
+    if (!confirm("Delete this timetable?")) return;
     await api(`/api/timetables/${id}`, { method: "DELETE" });
     push("Timetable deleted.");
     await reload();
@@ -155,7 +155,7 @@ export default function TimetablesPage() {
                         <Button size="xs" variant="secondary">Review</Button>
                       </Link>
                       <Button size="xs" variant="ghost" className="hover:text-claret"
-                        onClick={() => setDeleting(t._id)} aria-label="Delete">
+                        onClick={() => remove(t._id)} aria-label="Delete">
                         <Trash2 className="size-3.5" />
                       </Button>
                     </div>
@@ -209,8 +209,8 @@ export default function TimetablesPage() {
               <Wand2 className="size-4 text-claret" /> Generate the semester
             </span>
             <span className="mt-1 block text-[0.8125rem] leading-snug text-muted">
-              Builds a weekly pattern, expands it across the calendar, reconciles every
-              assignment to its exact session count, then validates the result.
+              Generates the dated semester timetable, reconciles every assignment to its
+              exact session count, then validates the result.
             </span>
           </button>
 
@@ -220,24 +220,11 @@ export default function TimetablesPage() {
               <Plus className="size-4 text-muted" /> Start from an empty sheet
             </span>
             <span className="mt-1 block text-[0.8125rem] leading-snug text-muted">
-              Build the weekly pattern by hand, using Fill remaining whenever you want help.
+              Start with an empty dated timetable and place regular or extra classes directly.
             </span>
           </button>
         </div>
       </Modal>
-      <Modal
-        open={!!deleting}
-        onClose={() => setDeleting(null)}
-        title="Delete timetable?"
-        description="This removes the draft and all of its dated sessions."
-        footer={<>
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="primary" onClick={() => {
-            if (deleting) void remove(deleting);
-            setDeleting(null);
-          }}>Delete</Button>
-        </>}
-      ><div /></Modal>
     </>
   );
 }

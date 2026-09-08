@@ -60,28 +60,31 @@ export function Sidebar({
     <>
       <button
         onClick={() => setOpen((v) => !v)} aria-label="Toggle navigation"
-        className="fixed left-3 top-3 z-50 rounded border border-rule-strong/70 bg-sheet p-2 shadow-hair lg:hidden"
+        className="fixed left-3 top-3 z-50 rounded border border-line/70 bg-surface/10 p-2 lg:hidden"
       >
         {open ? <X className="size-4" /> : <Menu className="size-4" />}
       </button>
 
-      {open && <div className="fixed inset-0 z-30 bg-graphite-950/45 lg:hidden" onClick={() => setOpen(false)} />}
+      {open && <div className="fixed inset-0 z-30 bg-ink/30 lg:hidden" onClick={() => setOpen(false)} />}
 
       <aside className={cn(
-        "chrome fixed inset-y-0 left-0 z-40 flex w-[13.5rem] flex-col text-white transition-transform duration-200 ease-physical lg:translate-x-0",
+        "chrome fixed inset-y-0 left-0 z-40 flex w-[15rem] flex-col text-white transition-transform duration-200 ease-physical lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="px-4 pb-4 pt-4">
-          <Link href="/" className="group flex items-baseline gap-1.5">
-            <span className="font-display text-[0.95rem] tracking-[-0.01em] text-white">Chronos</span>
-            <span className="font-mono text-[0.6rem] uppercase tracking-[0.12em] text-white/30">TTMS</span>
+          <Link href="/" className="group flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-md bg-white/10 font-sans text-lg text-white">C</span>
+            <span>
+              <span className="block font-sans text-[1.02rem] tracking-[-0.02em] text-white">Chronos</span>
+              <span className="block font-mono text-[0.55rem] uppercase tracking-[0.16em] text-white/35">Timetable OS</span>
+            </span>
           </Link>
         </div>
 
         <div className="px-3 pb-3">
           <button
             onClick={onCommand}
-            className="flex w-full items-center gap-2 rounded border border-white/[.09] bg-white/[.035] px-2 py-1.5 text-left text-[0.8125rem] text-white/45 transition-colors hover:border-white/20 hover:text-white/70"
+            className="flex w-full items-center gap-2 rounded-md border border-white/[.1] bg-black/10 px-2.5 py-2 text-left text-[0.8125rem] text-white/45 shadow-inset transition-all hover:border-white/20 hover:bg-white/[.07] hover:text-white/80"
           >
             <Command className="size-3.5" />
             <span className="flex-1">Search</span>
@@ -113,7 +116,7 @@ export function Sidebar({
                         )}
                       >
                         {active && (
-                          <span className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-claret" />
+                                                  <span className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-accent" />
                         )}
                         <Icon className={cn("size-[15px] shrink-0", active ? "text-white" : "text-white/40 group-hover:text-white/70")} />
                         {item.label}

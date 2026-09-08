@@ -71,6 +71,7 @@ export const SESSION_KIND_ENUM = z.enum(["LECTURE", "LAB", "TUTORIAL"]);
 export const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(1, "Enter your password"),
+  surface: z.enum(["university", "platform"]).default("university"),
 });
 
 export const timeSlotSchema = z.object({

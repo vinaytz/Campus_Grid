@@ -65,18 +65,18 @@ export function GenerationReport({ report }: { report: Report }) {
     .sort((a, b) => b[1] - a[1]);
 
   return (
-    <section className="mb-4 overflow-hidden rounded-md border border-rule bg-sheet shadow-hair">
+    <section className="mb-4 overflow-hidden rounded-md border border-line bg-surface">
       {/* Headline */}
       <div className={cn(
         "flex flex-wrap items-center gap-3 border-b px-4 py-3",
-        publishable ? "border-moss-line bg-moss-soft/50" : "border-ochre-line bg-ochre-soft/50"
+        "border-line bg-surface/30"
       )}>
         {publishable ? (
-          <CheckCircle2 className="size-4 shrink-0 text-moss" />
+          <CheckCircle2 className="size-4 shrink-0 text-ink" />
         ) : (
-          <AlertTriangle className="size-4 shrink-0 text-ochre" />
+          <AlertTriangle className="size-4 shrink-0 text-ink" />
         )}
-        <p className={cn("text-[0.875rem] font-medium", publishable ? "text-moss" : "text-ochre")}>
+        <p className={cn("text-[0.875rem] font-medium", publishable ? "text-ink" : "text-accent")}>
           {publishable
             ? "Valid — every assignment has exactly its required sessions, with no hard violations."
             : hard.length > 0
@@ -115,7 +115,7 @@ export function GenerationReport({ report }: { report: Report }) {
           <ul className="space-y-1">
             {hard.slice(0, 8).map((x, i) => (
               <li key={i} className="text-[0.8125rem] leading-snug">
-                <span className="font-mono text-[0.66rem] font-semibold uppercase tracking-wide text-claret">
+                <span className="font-mono text-[0.66rem] font-semibold uppercase tracking-wide text-accent">
                   {x.rule.replace(/_/g, " ")}
                 </span>
                 <span className="ml-2">{x.message}</span>
@@ -137,7 +137,7 @@ export function GenerationReport({ report }: { report: Report }) {
             {mismatches.slice(0, 8).map((m, i) => (
               <li key={i} className="flex items-baseline gap-2 text-[0.8125rem]">
                 <span className="font-mono text-[0.72rem] font-semibold">{m.assignment}</span>
-                <span className="font-mono text-micro tnum text-claret">
+                <span className="font-mono text-micro tnum text-accent">
                   {m.scheduled} of {m.required}
                 </span>
                 <span className="text-muted">
@@ -222,7 +222,7 @@ export function GenerationReport({ report }: { report: Report }) {
                     <tr key={i}>
                       <td className="px-4 py-1.5 font-mono text-[0.72rem]">{p.label}</td>
                       <td className="px-4 py-1.5 text-right font-mono text-micro tnum">
-                        <span className={exact ? "text-moss" : "text-claret"}>{p.scheduled}</span>
+                        <span className={exact ? "text-ink" : "text-accent"}>{p.scheduled}</span>
                         <span className="text-muted"> / {p.required}</span>
                       </td>
                       <td className="w-8 pr-4 text-right">
@@ -249,7 +249,7 @@ function Figure({
     <div className="px-4 py-3">
       <p className="label">{label}</p>
       <p className={cn(
-        "mt-0.5 font-display text-[1.5rem] leading-none tnum",
+        "mt-0.5 font-sans text-[1.25rem] leading-none tnum text-ink",
         tone === "moss" ? "text-moss" : tone === "claret" ? "text-claret" : "text-ink"
       )}>
         {value}

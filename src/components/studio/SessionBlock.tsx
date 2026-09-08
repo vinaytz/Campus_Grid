@@ -4,9 +4,9 @@ import { Lock, GripVertical } from "lucide-react";
 import type { LiteEntry } from "@/lib/scheduler/validate";
 
 const ACCENT: Record<string, { bar: string; tint: string }> = {
-  LECTURE: { bar: "bg-lapis", tint: "hover:bg-lapis-soft/50" },
-  LAB: { bar: "bg-moss", tint: "hover:bg-moss-soft/50" },
-  TUTORIAL: { bar: "bg-ochre", tint: "hover:bg-ochre-soft/50" },
+  LECTURE: { bar: "bg-accent", tint: "hover:bg-accent/10" },
+  LAB: { bar: "bg-accent/70", tint: "hover:bg-accent/10" },
+  TUTORIAL: { bar: "bg-accent/40", tint: "hover:bg-accent/10" },
 };
 
 /**
@@ -38,8 +38,8 @@ export function SessionBlock({
         "border bg-sheet pl-2 pr-1.5 py-1 text-left transition-all duration-150 ease-physical",
         "active:cursor-grabbing",
         selected
-          ? "border-claret shadow-[0_0_0_1px_theme(colors.claret.DEFAULT)]"
-          : "border-rule-strong/60 hover:border-graphite-400 hover:shadow-hair",
+          ? "border-accent"
+                    : "border-line/60 hover:border-ink/60",
         accent.tint,
         dragging && "opacity-30"
       )}
@@ -51,7 +51,7 @@ export function SessionBlock({
           {entry.subject.code}
         </span>
         <span className="flex shrink-0 items-center gap-0.5">
-          {entry.locked && <Lock className="size-2.5 text-claret" />}
+          {entry.locked && <Lock className="size-2.5 text-accent" />}
           <GripVertical className="size-3 text-transparent transition-colors group-hover:text-muted/50" />
         </span>
       </div>
@@ -65,11 +65,11 @@ export function SessionBlock({
       <span className="mt-auto flex flex-wrap items-center gap-x-1.5 pt-0.5 text-[0.65rem] leading-tight text-muted">
         {showFaculty && <span className="truncate">{entry.faculty.name}</span>}
         {showRoom && (
-          <span className="font-mono text-graphite-500">
+                  <span className="font-mono text-muted">
             {entry.room.block}-{entry.room.code}
           </span>
         )}
-        {showSection && <span className="font-mono text-graphite-500">§{entry.section.number}</span>}
+        {showSection && <span className="font-mono text-muted">§{entry.section.number}</span>}
       </span>
     </div>
   );

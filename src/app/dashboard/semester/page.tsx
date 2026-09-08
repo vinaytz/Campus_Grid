@@ -95,22 +95,25 @@ export default function SemesterPage() {
       : [...form!.teachingWeekdays, d].sort());
 
   function addException() {
+    if (!form) return;
     if (!draft.date || !draft.label.trim()) {
       push("An exception needs a date and a label.", "error");
       return;
     }
-    set("exceptions", [...form!.exceptions, { ...draft, label: draft.label.trim() }]
+    set("exceptions", [...form.exceptions, { ...draft, label: draft.label.trim() }]
       .sort((a, b) => a.date.localeCompare(b.date)));
     setDraft({ date: "", kind: "HOLIDAY", label: "", followsWeekday: null });
   }
 
   async function save() {
+    const current = form;
+    if (!current) return;
     setSaving(true);
     try {
-      const payload = { ...form! };
+      const payload = { ...current };
       delete (payload as any)._id;
-      const saved = form!._id
-        ? await api<Semester>(`/api/admin/semesters/${form!._id}`, { method: "PUT", json: payload })
+      const saved = current._id
+        ? await api<Semester>(`/api/admin/semesters/${current._id}`, { method: "PUT", json: payload })
         : await api<Semester>("/api/admin/semesters", { method: "POST", json: payload });
       push("Semester calendar saved.");
       setForm(saved);

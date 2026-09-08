@@ -11,14 +11,23 @@ export async function middleware(req: NextRequest) {
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
+  if (pathname.startsWith("/dashboard") && session?.role === "PLATFORM_ADMIN") {
+    return NextResponse.redirect(new URL("/adminDashboard", req.url));
+  }
   if (pathname === "/login" && session) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(new URL(
+      session.role === "PLATFORM_ADMIN" ? "/adminDashboard" : "/dashboard",
+      req.url
+    ));
   }
   if (pathname.startsWith("/adminDashboard") && (!session || session.role !== "PLATFORM_ADMIN")) {
     return NextResponse.redirect(new URL("/adminLogin", req.url));
   }
   if (pathname === "/adminLogin" && session?.role === "PLATFORM_ADMIN") {
     return NextResponse.redirect(new URL("/adminDashboard", req.url));
+  }
+  if (pathname === "/adminLogin" && session && session.role !== "PLATFORM_ADMIN") {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
   return NextResponse.next();
 }
