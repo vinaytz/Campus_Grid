@@ -390,7 +390,10 @@ export async function generateTimetable(opts: GenerateOptions = {}): Promise<Gen
  * This is what the publish gate consults — never the generator's own opinion.
  */
 export async function revalidateTimetable(doc: any) {
-  const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
+  const u = await loadUniverse({
+    semesterId: doc.semester ? String(doc.semester) : undefined,
+    universityId: doc.universityId ? String(doc.universityId) : undefined,
+  });
 
   const sessions: DatedSession[] = (doc.sessions ?? []).map((s: any) => ({
     assignmentId: s.assignment ? String(s.assignment._id ?? s.assignment) : undefined,

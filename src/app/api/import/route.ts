@@ -2,6 +2,7 @@ import { connectAndRegister } from "@/lib/db";
 import { requireUniversityAdmin } from "@/lib/auth";
 import { previewImport, commitImport, templateFor, type ImportResource } from "@/lib/import";
 import { importCommitSchema } from "@/lib/validators";
+import { isMultipartContentType } from "@/lib/import-request";
 import { ok, fail, handleError, parseBody } from "@/lib/api";
 
 const RESOURCES = ["rooms", "faculty", "subjects", "sections", "assignments"] as const;
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     const resource = resourceFrom(searchParams.get("resource"));
 
     const contentType = req.headers.get("content-type") ?? "";
-    const form = contentType.startsWith("multipart/form-data")
+    const form = isMultipartContentType(contentType)
       ? await req.formData()
       : null;
     let text: string;
