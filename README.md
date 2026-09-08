@@ -1,4 +1,4 @@
-# Chronos — Timetable Management System
+# Campus Grid — Timetable Management System
 
 Next.js 15 (App Router) + MongoDB. A public schedule board at `/`, and an
 administrator workbench at `/login` → `/dashboard`.
@@ -127,7 +127,7 @@ then"*, *"Seats 30, section has 50 students"*, *"Would run through lunch"*. A
 multi-period lab previews its whole span before it lands.
 
 This is why the builder feels effortless: **an invalid arrangement is not
-something you can create and then have to repair.** The rules are visible while
+something you can create and then have to repair.** The Scheduling Rules are visible while
 you are deciding, not enforced after the fact.
 
 **Fill remaining.** Hand-place the awkward sessions, pin them, then let the
@@ -142,7 +142,7 @@ the lens also drops whichever field is redundant from each block.
 **Command palette.** `⌘K` jumps anywhere.
 
 The client-side checker in `lib/scheduler/validate.ts` enforces exactly the same
-hard rules as the server-side solver, and the layout endpoint revalidates on
+hard Scheduling Rules as the server-side solver, and the layout endpoint revalidates on
 save, so the instant feedback is never a lie.
 
 ---

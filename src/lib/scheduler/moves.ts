@@ -7,7 +7,7 @@
  */
 
 import type {
-  AssignmentRef, DatedSession, FacultyRef, RoomRef, SchedulerRules, SectionRef,
+  AssignmentRef, DatedSession, FacultyRef, RoomRef, SchedulingRules, SectionRef,
   SlotRef, TeachingDay,
 } from "./types";
 import { roomSatisfies } from "./rooms";
@@ -36,7 +36,7 @@ export interface MoveContext {
   rooms: RoomRef[];
   sections: SectionRef[];
   faculty: FacultyRef[];
-  rules: SchedulerRules;
+  schedulingRules: SchedulingRules;
 }
 
 export type MoveVerdict = { ok: true } | { ok: false; reasons: string[] };
@@ -71,7 +71,7 @@ export function validateMove(req: MoveRequest, ctx: MoveContext): MoveVerdict {
   }
 
   // ── Duration / contiguity ─────────────────────────────────────────────
-  const span = spanIsContiguous(ctx.slots, req.slotOrder, req.duration, ctx.rules.allowSessionsAcrossBreak);
+  const span = spanIsContiguous(ctx.slots, req.slotOrder, req.duration, ctx.schedulingRules.allowSessionsAcrossBreak);
   if (!span.ok) reasons.push(span.reason);
 
   // ── Room compatibility ────────────────────────────────────────────────
@@ -113,9 +113,9 @@ export function validateMove(req: MoveRequest, ctx: MoveContext): MoveVerdict {
     if (s.sectionId !== req.sectionId) continue;
     for (const o of spanOf(s.slotOrder, s.duration)) sectionPeriods.add(o);
   }
-  if (sectionPeriods.size + req.duration > ctx.rules.maxHoursPerDayPerSection) {
+  if (sectionPeriods.size + req.duration > ctx.schedulingRules.maxHoursPerDayPerSection) {
     reasons.push(
-      `Section ${section.number} would have ${sectionPeriods.size + req.duration} periods that day (cap ${ctx.rules.maxHoursPerDayPerSection}).`
+      `Section ${section.number} would have ${sectionPeriods.size + req.duration} periods that day (cap ${ctx.schedulingRules.maxHoursPerDayPerSection}).`
     );
   }
 
@@ -133,11 +133,11 @@ export function validateMove(req: MoveRequest, ctx: MoveContext): MoveVerdict {
     const already = others.filter(
       (s) => s.type === "REGULAR" && s.assignmentId === req.assignmentId
     ).length;
-    if (already >= ctx.rules.maxSessionsPerAssignmentPerDay) {
+    if (already >= ctx.schedulingRules.maxSessionsPerAssignmentPerDay) {
       reasons.push(
-        ctx.rules.maxSessionsPerAssignmentPerDay === 1
+        ctx.schedulingRules.maxSessionsPerAssignmentPerDay === 1
           ? "This class already meets once on that date."
-          : `This class already meets ${ctx.rules.maxSessionsPerAssignmentPerDay} times on that date.`
+          : `This class already meets ${ctx.schedulingRules.maxSessionsPerAssignmentPerDay} times on that date.`
       );
     }
   }
@@ -197,7 +197,7 @@ export interface PatternContext {
   rooms: RoomRef[];
   sections: SectionRef[];
   faculty: FacultyRef[];
-  rules: SchedulerRules;
+  schedulingRules: SchedulingRules;
   /** Weekdays the pattern may use. */
   days: number[];
 }
@@ -244,7 +244,7 @@ export function validatePattern(
       reasons.push(`${label} is placed on a day that is not a teaching weekday.`);
     }
 
-    const span = spanIsContiguous(ctx.slots, c.slotOrder, c.duration, ctx.rules.allowSessionsAcrossBreak);
+    const span = spanIsContiguous(ctx.slots, c.slotOrder, c.duration, ctx.schedulingRules.allowSessionsAcrossBreak);
     if (!span.ok) reasons.push(`${label}: ${span.reason}`);
 
     const fit = roomSatisfies(room, a, a.kind, section.strength);
@@ -283,9 +283,9 @@ export function validatePattern(
   }
 
   for (const [k, n] of sectionDay) {
-    if (n <= ctx.rules.maxHoursPerDayPerSection) continue;
+    if (n <= ctx.schedulingRules.maxHoursPerDayPerSection) continue;
     const number = sectionById.get(k.split(":")[0])?.number ?? "?";
-    reasons.push(`Section ${number} has ${n} periods on one day (cap ${ctx.rules.maxHoursPerDayPerSection}).`);
+    reasons.push(`Section ${number} has ${n} periods on one day (cap ${ctx.schedulingRules.maxHoursPerDayPerSection}).`);
   }
   for (const [k, n] of facultyDay) {
     const fac = facultyById.get(k.split(":")[0]);
@@ -293,11 +293,11 @@ export function validatePattern(
     reasons.push(`${fac.name} has ${n} periods on one day (cap ${fac.maxHoursPerDay}).`);
   }
   for (const [k, n] of assignmentDay) {
-    if (n <= ctx.rules.maxSessionsPerAssignmentPerDay) continue;
+    if (n <= ctx.schedulingRules.maxSessionsPerAssignmentPerDay) continue;
     const a = assignmentById.get(k.split(":")[0]);
     reasons.push(
       `${a?.subjectCode ?? "A class"} · §${a?.sectionNumber ?? "?"} appears ${n} times on one day ` +
-      `(cap ${ctx.rules.maxSessionsPerAssignmentPerDay}).`
+      `(cap ${ctx.schedulingRules.maxSessionsPerAssignmentPerDay}).`
     );
   }
 

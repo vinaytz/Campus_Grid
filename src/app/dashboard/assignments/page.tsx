@@ -5,7 +5,7 @@ import { ROOM_TYPES, ROOM_CAPABILITIES } from "@/lib/constants";
 
 /**
  * The teaching-load screen. This is the most important domain object in the
- * system: faculty + subject + section + exact session count + room rules.
+ * system: faculty + subject + section + exact session count + room schedulingRules.
  *
  * `requiredSessions` is the number that matters — it is the exact total the
  * published semester timetable must contain. "Sessions per week" is only a hint
@@ -17,7 +17,7 @@ export default function AssignmentsPage() {
       config={{
         resource: "assignments",
         eyebrow: "Scheduling",
-        title: "Teaching load",
+        title: "Teaching Assignment",
         singular: "Assignment",
         searchable: false,
         description:

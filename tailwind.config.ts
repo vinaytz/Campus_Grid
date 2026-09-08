@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-/** Chronos design tokens: six colours, with accent reserved for action and focus. */
+/** Campus Grid design tokens: six colours, with accent reserved for action and focus. */
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {

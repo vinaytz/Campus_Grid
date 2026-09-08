@@ -77,7 +77,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         rooms: u.rooms,
         sections: u.sections,
         faculty: u.faculty,
-        rules: u.rules,
+        schedulingRules: u.schedulingRules,
       }
     );
 
@@ -136,7 +136,7 @@ export async function POST(req: Request, { params }: Ctx) {
         {
           sessions: toDated(doc.sessions as any[]), assignments: u.assignments,
           teachingDays: u.teachingDays, slots: u.slots, rooms: u.rooms,
-          sections: u.sections, faculty: u.faculty, rules: u.rules,
+          sections: u.sections, faculty: u.faculty, schedulingRules: u.schedulingRules,
         }
       );
       if (!verdict.ok) return fail(verdict.reasons[0], 409, { reasons: verdict.reasons });
@@ -182,7 +182,7 @@ export async function POST(req: Request, { params }: Ctx) {
         rooms: u.rooms,
         sections: u.sections,
         faculty: u.faculty,
-        rules: u.rules,
+        schedulingRules: u.schedulingRules,
       }
     );
 

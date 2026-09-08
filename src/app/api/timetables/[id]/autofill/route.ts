@@ -75,7 +75,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       faculty: u.faculty,
       sections: u.sections,
       sessions: missing,
-      rules: u.rules,
+      schedulingRules: u.schedulingRules,
       seed: Date.now() % 100000,
       locked: (doc.entries as any[]).map((e) => ({
         sessionKey: String(e._id),

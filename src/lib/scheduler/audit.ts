@@ -18,7 +18,7 @@
 
 import type {
   AssignmentRef, AuditReport, DatedSession, FacultyRef, RoomRef, SectionRef,
-  SchedulerRules, SlotRef, TeachingDay, Violation,
+  SchedulingRules, SlotRef, TeachingDay, Violation,
 } from "./types";
 import { roomSatisfies } from "./rooms";
 import { spanOf, spanIsContiguous, slotsInWindow } from "./time";
@@ -31,11 +31,11 @@ export interface AuditInput {
   rooms: RoomRef[];
   sections: SectionRef[];
   faculty: FacultyRef[];
-  rules: SchedulerRules;
+  schedulingRules: SchedulingRules;
 }
 
 export function auditTimetable(input: AuditInput): AuditReport {
-  const { sessions, assignments, teachingDays, slots, rooms, sections, faculty, rules } = input;
+  const { sessions, assignments, teachingDays, slots, rooms, sections, faculty, schedulingRules } = input;
 
   const hard: Violation[] = [];
   const soft: Violation[] = [];
@@ -155,7 +155,7 @@ export function auditTimetable(input: AuditInput): AuditReport {
     }
 
     // Duration / contiguity.
-    const contiguity = spanIsContiguous(slots, s.slotOrder, s.duration, rules.allowSessionsAcrossBreak);
+    const contiguity = spanIsContiguous(slots, s.slotOrder, s.duration, schedulingRules.allowSessionsAcrossBreak);
     if (!contiguity.ok) {
       push({
         rule: "CONTIGUITY",
@@ -203,12 +203,12 @@ export function auditTimetable(input: AuditInput): AuditReport {
   /* ── 3. Same assignment more than once a day ───────────────────────────── */
 
   for (const [k, list] of perDayAssignment) {
-    if (list.length <= rules.maxSessionsPerAssignmentPerDay) continue;
+    if (list.length <= schedulingRules.maxSessionsPerAssignmentPerDay) continue;
     const [, date] = k.split(":");
     push({
       rule: "ASSIGNMENT_PER_DAY",
       severity: "HARD",
-      message: `${who(list[0])} occurs ${list.length} times on ${date}; the limit is ${rules.maxSessionsPerAssignmentPerDay} per day.`,
+      message: `${who(list[0])} occurs ${list.length} times on ${date}; the limit is ${schedulingRules.maxSessionsPerAssignmentPerDay} per day.`,
       date,
     });
   }
@@ -248,7 +248,7 @@ export function auditTimetable(input: AuditInput): AuditReport {
   /* ── 5. Soft observations — reported, never blocking ───────────────────── */
 
   const classOrders = slots.filter((s) => s.kind === "CLASS").map((s) => s.order);
-  const afternoon = slotsInWindow(slots, rules.afternoonWindowStart, rules.afternoonWindowEnd);
+  const afternoon = slotsInWindow(slots, schedulingRules.afternoonWindowStart, schedulingRules.afternoonWindowEnd);
 
   // Section day load, for the balance and afternoon-break observations.
   const secDayPeriods = new Map<string, Set<number>>();
@@ -263,22 +263,22 @@ export function auditTimetable(input: AuditInput): AuditReport {
     const [sectionId, date] = k.split("|");
     const number = sectionById.get(sectionId)?.number ?? sectionId;
 
-    if (set.size > rules.maxHoursPerDayPerSection) {
+    if (set.size > schedulingRules.maxHoursPerDayPerSection) {
       push({
         rule: "SECTION_DAY_LOAD",
         severity: "HARD",
-        message: `Section ${number} has ${set.size} periods on ${date}; the cap is ${rules.maxHoursPerDayPerSection}.`,
+        message: `Section ${number} has ${set.size} periods on ${date}; the cap is ${schedulingRules.maxHoursPerDayPerSection}.`,
         date,
       });
     }
 
-    if (rules.preferAfternoonBreak && afternoon.length > 0) {
+    if (schedulingRules.preferAfternoonBreak && afternoon.length > 0) {
       const freeInWindow = afternoon.filter((o) => !set.has(o)).length;
       if (freeInWindow === 0) {
         push({
           rule: "NO_AFTERNOON_BREAK",
           severity: "SOFT",
-          message: `Section ${number} has no free period between ${rules.afternoonWindowStart} and ${rules.afternoonWindowEnd} on ${date}.`,
+          message: `Section ${number} has no free period between ${schedulingRules.afternoonWindowStart} and ${schedulingRules.afternoonWindowEnd} on ${date}.`,
           date,
         });
       }

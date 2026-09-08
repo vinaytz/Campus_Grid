@@ -15,7 +15,7 @@ export function Inspector({
   rooms: LiteRoom[];
   entries: LiteEntry[];
   slots: { order: number; start: string; label: string }[];
-  /** The assignment's room rules, so a forbidden room is never offered. */
+  /** The assignment's room schedulingRules, so a forbidden room is never offered. */
   requirement?: Partial<Candidate>;
   onChangeRoom: (roomId: string) => void;
   onToggleLock: () => void;

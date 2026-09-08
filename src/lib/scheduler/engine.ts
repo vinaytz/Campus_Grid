@@ -128,9 +128,9 @@ export function solve(input: SolverInput): SolverResult {
 
   const slots = [...input.slots].sort((a, b) => a.order - b.order);
   const classOrders = slots.filter((s) => s.kind === "CLASS").map((s) => s.order);
-  const windows = buildWindows(slots, input.rules.allowSessionsAcrossBreak);
+  const windows = buildWindows(slots, input.schedulingRules.allowSessionsAcrossBreak);
   const afternoonOrders = slotsInWindow(
-    slots, input.rules.afternoonWindowStart, input.rules.afternoonWindowEnd
+    slots, input.schedulingRules.afternoonWindowStart, input.schedulingRules.afternoonWindowEnd
   );
 
   const sectionById = new Map(input.sections.map((s) => [s.id, s]));
@@ -210,25 +210,25 @@ export function solve(input: SolverInput): SolverResult {
 
     const blocked = new Set(fac.unavailability.map((u) => k(u.day, u.slotOrder)));
     const rooms = eligibleRooms.get(s.key)!;
-    const w = input.rules.weights;
+    const w = input.schedulingRules.weights;
     const out: { p: Placement; score: number }[] = [];
 
     for (const day of input.days) {
       // ── Hard: same assignment must not exceed its per-day cap ──────────
       const sameAssignmentToday = ledger.assignmentDay.get(`${s.assignmentId}:${day}`) ?? 0;
-      if (sameAssignmentToday >= input.rules.maxSessionsPerAssignmentPerDay) continue;
+      if (sameAssignmentToday >= input.schedulingRules.maxSessionsPerAssignmentPerDay) continue;
 
       const facDay = ledger.facultyDayLoad.get(`${fac.id}:${day}`) ?? 0;
       if (facDay + s.duration > fac.maxHoursPerDay) continue;
       const secDay = ledger.sectionDayLoad.get(`${section.id}:${day}`) ?? 0;
-      if (secDay + s.duration > input.rules.maxHoursPerDayPerSection) continue;
+      if (secDay + s.duration > input.schedulingRules.maxHoursPerDayPerSection) continue;
 
       for (const win of windows.get(s.duration) ?? []) {
         if (win.some((o) => blocked.has(k(day, o)))) continue;
         if (!ledger.free("section", section.id, day, win)) continue;
         if (!ledger.free("faculty", fac.id, day, win)) continue;
         if (ledger.consecutiveFor(fac.id, day, win, classOrders) >
-            input.rules.maxConsecutiveHoursPerFaculty) continue;
+            input.schedulingRules.maxConsecutiveHoursPerFaculty) continue;
 
         // Soft preferences, lower is better.
         let base = 0;
@@ -242,7 +242,7 @@ export function solve(input: SolverInput): SolverResult {
         // Afternoon free period: penalise a placement that would use up the
         // section's last free slot inside the configured window. Soft only —
         // it reorders candidates, it never removes one.
-        if (input.rules.preferAfternoonBreak && afternoonOrders.length > 0) {
+        if (input.schedulingRules.preferAfternoonBreak && afternoonOrders.length > 0) {
           const freeBefore = ledger.freeWithin(section.id, day, afternoonOrders);
           const freeAfter = ledger.freeWithin(section.id, day, afternoonOrders, win);
           if (freeBefore > 0 && freeAfter === 0) base += 45 * w.afternoonBreak;

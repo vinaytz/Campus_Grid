@@ -11,7 +11,7 @@
  */
 
 import type {
-  AssignmentRef, DatedSession, RoomRef, SchedulerRules, ScoreReport, SectionRef,
+  AssignmentRef, DatedSession, RoomRef, SchedulingRules, ScoreReport, SectionRef,
   SlotRef, TeachingDay, FacultyRef,
 } from "./types";
 import { slotsInWindow, spanOf } from "./time";
@@ -25,7 +25,7 @@ export interface ScoreInput {
   sections: SectionRef[];
   faculty: FacultyRef[];
   rooms: RoomRef[];
-  rules: SchedulerRules;
+  schedulingRules: SchedulingRules;
 }
 
 /** Population standard deviation. */
@@ -37,13 +37,13 @@ function stdev(values: number[]): number {
 }
 
 export function scoreTimetable(input: ScoreInput): ScoreReport {
-  const { sessions, assignments, teachingDays, slots, sections, faculty, rooms, rules } = input;
-  const w = rules.weights;
+  const { sessions, assignments, teachingDays, slots, sections, faculty, rooms, schedulingRules } = input;
+  const w = schedulingRules.weights;
   const warnings: string[] = [];
 
   const regular = sessions.filter((s) => s.type === "REGULAR");
   const classOrders = slots.filter((s) => s.kind === "CLASS").map((s) => s.order);
-  const afternoon = slotsInWindow(slots, rules.afternoonWindowStart, rules.afternoonWindowEnd);
+  const afternoon = slotsInWindow(slots, schedulingRules.afternoonWindowStart, schedulingRules.afternoonWindowEnd);
   const sectionById = new Map(sections.map((s) => [s.id, s]));
   const facultyById = new Map(faculty.map((f) => [f.id, f]));
   const assignmentById = new Map(assignments.map((a) => [a.id, a]));
@@ -110,7 +110,7 @@ export function scoreTimetable(input: ScoreInput): ScoreReport {
   let afternoonPenalty = 0;
   let sectionDaysWithoutBreak = 0;
   let sectionDaysCounted = 0;
-  if (rules.preferAfternoonBreak && afternoon.length > 0) {
+  if (schedulingRules.preferAfternoonBreak && afternoon.length > 0) {
     for (const [k, set] of sectionDays) {
       sectionDaysCounted++;
       const free = afternoon.filter((o) => !set.has(o)).length;
@@ -121,7 +121,7 @@ export function scoreTimetable(input: ScoreInput): ScoreReport {
       const pct = Math.round((sectionDaysWithoutBreak / sectionDaysCounted) * 100);
       warnings.push(
         `${sectionDaysWithoutBreak} section-day(s) — ${pct}% — have no free period between ` +
-        `${rules.afternoonWindowStart} and ${rules.afternoonWindowEnd}.`
+        `${schedulingRules.afternoonWindowStart} and ${schedulingRules.afternoonWindowEnd}.`
       );
     }
   }
@@ -183,7 +183,7 @@ export function scoreTimetable(input: ScoreInput): ScoreReport {
     return penalty;
   };
   consecutivePenalty += runsOf(sectionDays, 3);
-  consecutivePenalty += runsOf(facultyDays, rules.maxConsecutiveHoursPerFaculty);
+  consecutivePenalty += runsOf(facultyDays, schedulingRules.maxConsecutiveHoursPerFaculty);
   consecutivePenalty = (consecutivePenalty / Math.max(1, sectionDays.size + facultyDays.size)) * 60;
   if (longestRunSeen >= 6) {
     warnings.push(`Somewhere in the term there is a run of ${longestRunSeen} back-to-back periods.`);

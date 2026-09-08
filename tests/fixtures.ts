@@ -6,7 +6,7 @@
  */
 
 import type {
-  AssignmentRef, FacultyRef, RoomRef, SchedulerRules, SectionRef, SlotRef,
+  AssignmentRef, FacultyRef, RoomRef, SchedulingRules, SectionRef, SlotRef,
 } from "@/lib/scheduler/types";
 
 /** Nine periods with a genuine clock gap between P4 and P5. */
@@ -51,7 +51,7 @@ export const FACULTY: FacultyRef[] = [
   { id: "f-2", facultyId: "23315", name: "Anjali Sharma", maxHoursPerWeek: 18, maxHoursPerDay: 5, unavailability: [] },
 ];
 
-export const RULES: SchedulerRules = {
+export const schedulingRules: SchedulingRules = {
   maxHoursPerDayPerSection: 7,
   maxConsecutiveHoursPerFaculty: 3,
   allowSessionsAcrossBreak: false,

@@ -29,7 +29,7 @@ export default function PublicDirectory() {
           <div className="flex items-center gap-2.5">
             <span className="flex size-9 items-center justify-center rounded-md bg-surface/10 font-sans text-xl">C</span>
             <div>
-              <span className="block font-sans text-sm">Chronos</span>
+              <span className="block font-sans text-sm">Campus Grid</span>
               <span className="block font-mono text-[0.52rem] uppercase tracking-[0.16em] text-white/35">Public timetables</span>
             </div>
           </div>

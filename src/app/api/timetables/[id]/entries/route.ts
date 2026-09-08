@@ -53,7 +53,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       rooms: u.rooms,
       sections: u.sections,
       faculty: u.faculty,
-      rules: u.rules,
+      schedulingRules: u.schedulingRules,
       days: patternWeekdays,
     });
 

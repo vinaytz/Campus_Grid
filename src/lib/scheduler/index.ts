@@ -12,7 +12,7 @@ import { expandToSemester, type PatternCell } from "./expand";
 import { auditTimetable } from "./audit";
 import { scoreTimetable } from "./score";
 import type {
-  AssignmentRef, DatedSession, FacultyRef, RoomRef, SchedulerRules, SectionRef,
+  AssignmentRef, DatedSession, FacultyRef, RoomRef, SchedulingRules, SectionRef,
   Session, SlotRef, SolverInput, TeachingDay,
 } from "./types";
 
@@ -42,7 +42,7 @@ export interface SchedulingUniverse {
   faculty: FacultyRef[];
   sections: SectionRef[];
   assignments: AssignmentRef[];
-  rules: SchedulerRules;
+  schedulingRules: SchedulingRules;
   raw: { assignments: any[] };
 }
 
@@ -81,7 +81,7 @@ export async function loadUniverse(opts: {
     .populate("faculty", "name facultyId")
     .lean();
 
-  const rules: SchedulerRules = {
+  const schedulingRules: SchedulingRules = {
     maxHoursPerDayPerSection: settings?.maxHoursPerDayPerSection ?? 7,
     maxConsecutiveHoursPerFaculty: settings?.maxConsecutiveHoursPerFaculty ?? 3,
     allowSessionsAcrossBreak: settings?.allowSessionsAcrossBreak ?? false,
@@ -142,7 +142,7 @@ export async function loadUniverse(opts: {
       homeRoom: s.homeRoom ? String(s.homeRoom) : undefined,
     })),
     assignments,
-    rules,
+    schedulingRules,
     raw: { assignments: rawAssignments as any[] },
   };
 }
@@ -249,7 +249,7 @@ export async function generateTimetable(opts: GenerateOptions = {}): Promise<Gen
     faculty: u.faculty,
     sections: u.sections,
     sessions: patternSessions,
-    rules: u.rules,
+    schedulingRules: u.schedulingRules,
     seed: opts.seed,
   };
 
@@ -272,7 +272,7 @@ export async function generateTimetable(opts: GenerateOptions = {}): Promise<Gen
     rooms: u.rooms,
     sections: u.sections,
     faculty: u.faculty,
-    rules: u.rules,
+    schedulingRules: u.schedulingRules,
   });
 
   // A pattern cell the solver could not place shows up as a deficit above and is
@@ -298,7 +298,7 @@ export async function generateTimetable(opts: GenerateOptions = {}): Promise<Gen
     sections: u.sections,
     faculty: u.faculty,
     rooms: u.rooms,
-    rules: u.rules,
+    schedulingRules: u.schedulingRules,
   });
 
   // ── 5. Independent validation ───────────────────────────────────────────
@@ -310,7 +310,7 @@ export async function generateTimetable(opts: GenerateOptions = {}): Promise<Gen
     rooms: u.rooms,
     sections: u.sections,
     faculty: u.faculty,
-    rules: u.rules,
+    schedulingRules: u.schedulingRules,
   });
 
   const byId = new Map(u.raw.assignments.map((a: any) => [String(a._id), a]));
@@ -419,7 +419,7 @@ export async function revalidateTimetable(doc: any) {
     rooms: u.rooms,
     sections: u.sections,
     faculty: u.faculty,
-    rules: u.rules,
+    schedulingRules: u.schedulingRules,
   });
 
   const score = scoreTimetable({
@@ -430,7 +430,7 @@ export async function revalidateTimetable(doc: any) {
     sections: u.sections,
     faculty: u.faculty,
     rooms: u.rooms,
-    rules: u.rules,
+    schedulingRules: u.schedulingRules,
   });
 
   return { audit, score, universe: u, sessions };

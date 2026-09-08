@@ -63,7 +63,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await api("/api/settings", { method: "PUT", json: form });
-      push("Rules saved.");
+      push("schedulingRules saved.");
     } catch (e) {
       push((e as Error).message, "error");
     } finally {
@@ -77,9 +77,9 @@ export default function SettingsPage() {
     <>
       <PageHeader
         eyebrow="Scheduling"
-        title="Rules"
+        title="schedulingRules"
         description="Hard limits the generator must never break, and the relative weight of each thing it merely prefers."
-        action={<Button variant="primary" size="sm" onClick={save} loading={saving}>Save rules</Button>}
+        action={<Button variant="primary" size="sm" onClick={save} loading={saving}>Save schedulingRules</Button>}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">

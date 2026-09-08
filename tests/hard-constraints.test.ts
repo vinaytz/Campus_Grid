@@ -5,7 +5,7 @@ import { spanIsContiguous } from "@/lib/scheduler/time";
 import { auditTimetable } from "@/lib/scheduler/audit";
 import type { Session, SolverInput, DatedSession } from "@/lib/scheduler/types";
 import {
-  SLOTS, SLOTS_WITH_BREAK, SLOTS_WITH_GAP, ROOMS, SECTIONS, FACULTY, RULES, assignment,
+  SLOTS, SLOTS_WITH_BREAK, SLOTS_WITH_GAP, ROOMS, SECTIONS, FACULTY, schedulingRules, assignment,
 } from "./fixtures";
 
 /** Turns an assignment into `n` pattern sessions for the solver. */
@@ -36,7 +36,7 @@ function input(sessions: Session[], over: Partial<SolverInput> = {}): SolverInpu
     faculty: FACULTY,
     sections: SECTIONS,
     sessions,
-    rules: RULES,
+    schedulingRules: schedulingRules,
     seed: 7,
     ...over,
   };
@@ -242,7 +242,7 @@ describe("same assignment per day (hard, default 1)", () => {
   it("allows two a day when the rule is raised", () => {
     const a = assignment();
     const res = solve(input(sessionsFor(a, 6), {
-      rules: { ...RULES, maxSessionsPerAssignmentPerDay: 2 },
+      schedulingRules: { ...schedulingRules, maxSessionsPerAssignmentPerDay: 2 },
     }));
     expect(Object.keys(res.placements).length).toBe(6);
   });
@@ -291,7 +291,7 @@ describe("the validator catches what a broken scheduler would emit", () => {
     rooms: ROOMS,
     sections: SECTIONS,
     faculty: FACULTY,
-    rules: RULES,
+    schedulingRules: schedulingRules,
   };
 
   const session = (over: Partial<DatedSession> = {}): DatedSession => ({

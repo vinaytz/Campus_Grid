@@ -35,7 +35,7 @@ export interface SectionRef {
   homeRoom?: string;
 }
 
-/** The room rules attached to an assignment, shared by solver and validator. */
+/** The room schedulingRules attached to an assignment, shared by solver and validator. */
 export interface RoomRequirement {
   roomSelection: RoomSelection;
   fixedRoom?: string;
@@ -94,7 +94,7 @@ export interface TeachingDay {
   week: number;
 }
 
-export interface SchedulerRules {
+export interface SchedulingRules {
   maxHoursPerDayPerSection: number;
   maxConsecutiveHoursPerFaculty: number;
   allowSessionsAcrossBreak: boolean;
@@ -121,7 +121,7 @@ export interface SolverInput {
   faculty: FacultyRef[];
   sections: SectionRef[];
   sessions: Session[];
-  rules: SchedulerRules;
+  schedulingRules: SchedulingRules;
   seed?: number;
   /**
    * Pattern cells the admin pinned — treated as immovable occupancy. Carrying

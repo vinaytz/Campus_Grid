@@ -28,7 +28,7 @@ const RESOURCES: { value: Resource; label: string; hint: string }[] = [
   { value: "faculty", label: "Faculty", hint: "ID, name, department, daily cap" },
   { value: "subjects", label: "Subjects", hint: "code, name, type, default length" },
   { value: "sections", label: "Sections", hint: "number, program, semester, strength" },
-  { value: "assignments", label: "Teaching load", hint: "section, subject, faculty, required sessions" },
+  { value: "assignments", label: "Teaching Assignment", hint: "section, subject, faculty, required sessions" },
 ];
 
 /**
@@ -91,7 +91,7 @@ export default function ImportPage() {
       <PageHeader
         eyebrow="Master data"
         title="Bulk import"
-        description="Load rooms, faculty, subjects, sections or teaching load from a spreadsheet. Everything is checked and shown to you before anything is written."
+        description="Load rooms, faculty, subjects, sections or Teaching Assignment from a spreadsheet. Everything is checked and shown to you before anything is written."
         action={
           <a href={`/api/import?resource=${resource}`} download>
             <Button variant="secondary" size="sm">
@@ -123,7 +123,7 @@ export default function ImportPage() {
           </div>
           <p className="rule-t mt-4 pt-3 text-micro leading-relaxed text-muted">
             Headers are matched loosely — &quot;Room No&quot;, &quot;room_number&quot; and
-            &quot;code&quot; all work. Teaching load refers to sections, subjects, faculty
+            &quot;code&quot; all work. Teaching Assignment refers to sections, subjects, faculty
             and rooms by their own codes, not database ids.
           </p>
         </section>

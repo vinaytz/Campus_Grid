@@ -17,7 +17,7 @@ import { SessionTray, type PendingSession } from "./SessionTray";
 import { SessionBlock } from "./SessionBlock";
 import { Inspector } from "./Inspector";
 import { ContextMenu, type ContextTarget } from "./ContextMenu";
-import { dropMap, availableRooms, requirementFromAssignment, type LiteEntry, type LiteRoom, type LiteSlot, type Rules, type Verdict } from "@/lib/scheduler/validate";
+import { dropMap, availableRooms, requirementFromAssignment, type LiteEntry, type LiteRoom, type LiteSlot, type SchedulingRules, type Verdict } from "@/lib/scheduler/validate";
 import { cn } from "@/lib/utils";
 
 type Lens = "section" | "faculty" | "room";
@@ -26,14 +26,14 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 const uid = () => `tmp_${Math.random().toString(36).slice(2, 10)}`;
 
 export function Studio({
-  timetableId, initialEntries, assignments, slots, rooms, rules, teachingWeeks, readOnly,
+  timetableId, initialEntries, assignments, slots, rooms, schedulingRules, teachingWeeks, readOnly,
 }: {
   timetableId: string;
   initialEntries: LiteEntry[];
   assignments: any[];
   slots: LiteSlot[];
   rooms: LiteRoom[];
-  rules: Rules;
+  schedulingRules: SchedulingRules;
   /** Teaching weeks in the semester — sizes the weekly pattern. */
   teachingWeeks?: number;
   readOnly?: boolean;
@@ -155,7 +155,7 @@ export function Studio({
   /* ── Derived data ─────────────────────────────────────────────────── */
 
   /**
-   * Pattern cells from the teaching load that still have no slot.
+   * Pattern cells from the Teaching Assignment that still have no slot.
    *
    * The pattern is sized from each assignment's semester total spread over the
    * teaching weeks — a course needing 40 sessions across 14 weeks wants 3 cells a
@@ -258,8 +258,8 @@ export function Studio({
   const verdicts = useMemo<Map<string, Verdict> | null>(() => {
     if (!candidate) return null;
     const room = candidate.roomId ? rooms.find((r) => r._id === candidate.roomId) : undefined;
-    return dropMap(candidate as any, slots, entries, rules, room);
-  }, [candidate, slots, entries, rules, rooms]);
+    return dropMap(candidate as any, slots, entries, schedulingRules, room);
+  }, [candidate, slots, entries, schedulingRules, rooms]);
 
   function onDragStart(ev: DragStartEvent) {
     const d = ev.active.data.current as any;
@@ -446,7 +446,7 @@ export function Studio({
           <StudioCanvas
             slots={slots}
             entries={visible}
-            days={rules.workingDays}
+            days={schedulingRules.workingDays}
             dropVerdicts={verdicts}
             dragActive={!!drag}
             dragSpan={candidate?.duration ?? 1}

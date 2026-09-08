@@ -6,7 +6,7 @@ import type { Types } from "mongoose";
  * this section, exactly `requiredSessions` times across the semester, each
  * session `duration` contiguous periods long.
  *
- *   Faculty + Subject + Section + requiredSessions + duration + room rules
+ *   Faculty + Subject + Section + requiredSessions + duration + room schedulingRules
  *
  * `requiredSessions` is an absolute semester total, not a weekly rate. An
  * assignment with requiredSessions: 40 must end up with exactly 40 dated

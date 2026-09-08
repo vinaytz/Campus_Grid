@@ -61,7 +61,7 @@ function EditSessionModal({
   return (
     <Modal open={open} onClose={onClose}
       title={session?.type === "EXTRA" ? "Edit extra class" : "Edit regular class"}
-      description="The server rechecks clashes, rooms, calendar rules and faculty availability before saving."
+      description="The server rechecks clashes, rooms, calendar schedulingRules and faculty availability before saving."
       footer={<><Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
         <Button onClick={() => void onSave(date, Number(slotOrder), room)} loading={saving}
           disabled={!date || !slotOrder || !room}>Save change</Button></>}>

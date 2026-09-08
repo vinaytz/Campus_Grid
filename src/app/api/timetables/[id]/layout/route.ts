@@ -31,7 +31,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * Replaces the whole weekly pattern in one write.
  *
  * The Studio is the source of truth while an admin is working — it holds the
- * layout locally, validates every move against the same rules the solver uses,
+ * layout locally, validates every move against the same schedulingRules the solver uses,
  * and saves the result. Replacing wholesale keeps undo/redo trivially correct:
  * a snapshot is just an array.
  *
@@ -72,7 +72,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         rooms: u.rooms,
         sections: u.sections,
         faculty: u.faculty,
-        rules: u.rules,
+        schedulingRules: u.schedulingRules,
         days: patternWeekdays,
       }
     );
@@ -141,7 +141,7 @@ export async function POST(_req: Request, { params }: Ctx) {
       rooms: u.rooms,
       sections: u.sections,
       faculty: u.faculty,
-      rules: u.rules,
+      schedulingRules: u.schedulingRules,
       fixedSessions: extras,
     });
 
@@ -175,11 +175,11 @@ export async function POST(_req: Request, { params }: Ctx) {
 
     const audit = auditTimetable({
       sessions: all, assignments: u.assignments, teachingDays: u.teachingDays,
-      slots: u.slots, rooms: u.rooms, sections: u.sections, faculty: u.faculty, rules: u.rules,
+      slots: u.slots, rooms: u.rooms, sections: u.sections, faculty: u.faculty, schedulingRules: u.schedulingRules,
     });
     const score = scoreTimetable({
       sessions: all, assignments: u.assignments, teachingDays: u.teachingDays,
-      slots: u.slots, sections: u.sections, faculty: u.faculty, rooms: u.rooms, rules: u.rules,
+      slots: u.slots, sections: u.sections, faculty: u.faculty, rooms: u.rooms, schedulingRules: u.schedulingRules,
     });
 
     doc.stats.requested = u.assignments.reduce((n, a) => n + a.requiredSessions, 0);

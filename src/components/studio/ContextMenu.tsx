@@ -17,7 +17,7 @@ export function ContextMenu({
   target: ContextTarget | null;
   rooms: LiteRoom[];
   entries: LiteEntry[];
-  /** The assignment's room rules, so a forbidden room is never offered. */
+  /** The assignment's room schedulingRules, so a forbidden room is never offered. */
   requirement?: Partial<Candidate>;
   onClose: () => void;
   onChangeRoom: (roomId: string) => void;
@@ -126,7 +126,7 @@ export function ContextMenu({
       {!rooming && (
         <p className="flex items-start gap-1.5 border-t border-rule px-2 py-1.5 text-[0.68rem] leading-snug text-muted">
           <ArrowRightLeft className="mt-px size-3 shrink-0" />
-          To change who teaches this, edit it under Teaching load.
+          To change who teaches this, edit it under Teaching Assignment.
         </p>
       )}
     </div>

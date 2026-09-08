@@ -8,7 +8,7 @@ import { GenerationReport, type Report } from "@/components/timetable/Generation
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
-import type { LiteEntry, LiteRoom, LiteSlot, Rules } from "@/lib/scheduler/validate";
+import type { LiteEntry, LiteRoom, LiteSlot, SchedulingRules } from "@/lib/scheduler/validate";
 
 type Detail = Report & {
   _id: string; name: string; status: string; academicYear: string; term: string;
@@ -30,7 +30,7 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
   const { data: assignments } = useResource<any[]>("/api/admin/assignments");
   const { data: settings } = useResource<any>("/api/settings");
 
-  const rules = useMemo<Rules | null>(() => settings ? {
+  const schedulingRules = useMemo<SchedulingRules | null>(() => settings ? {
     workingDays: settings.workingDays,
     maxHoursPerDayPerSection: settings.maxHoursPerDayPerSection,
     maxConsecutiveHoursPerFaculty: settings.maxConsecutiveHoursPerFaculty,
@@ -80,7 +80,7 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
     }
   }
 
-  const ready = data && slots && rooms && assignments && rules;
+  const ready = data && slots && rooms && assignments && schedulingRules;
 
   if (loading || !ready) {
     return (

@@ -88,7 +88,7 @@ export default function TimetablesPage() {
         <div className="rounded-md border border-rule bg-sheet shadow-hair">
           <EmptyState
             title="No timetables yet"
-            hint="With master data, teaching load and a semester calendar in place, generate your first draft — then review it week by week."
+            hint="With master data, Teaching Assignment and a semester calendar in place, generate your first draft — then review it week by week."
             action={<Button variant="primary" size="sm" onClick={() => setOpen(true)}>New timetable</Button>}
           />
         </div>

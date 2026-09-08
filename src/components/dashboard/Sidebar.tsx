@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { api } from "@/hooks/useApi";
 
-/** Ordered to match the real workflow: data → load → calendar → rules → build. */
+/** Ordered to match the real workflow: data → load → calendar → schedulingRules → build. */
 const NAV = [
   {
     group: null,
@@ -30,9 +30,9 @@ const NAV = [
   {
     group: "Scheduling",
     items: [
-      { href: "/dashboard/assignments", label: "Teaching load", icon: Network },
+      { href: "/dashboard/assignments", label: "Teaching Assignment", icon: Network },
       { href: "/dashboard/semester", label: "Semester", icon: CalendarDays },
-      { href: "/dashboard/settings", label: "Rules", icon: SlidersHorizontal },
+      { href: "/dashboard/settings", label: "schedulingRules", icon: SlidersHorizontal },
     ],
   },
   {
@@ -75,7 +75,7 @@ export function Sidebar({
           <Link href="/" className="group flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-md bg-white/10 font-sans text-lg text-white">C</span>
             <span>
-              <span className="block font-sans text-[1.02rem] tracking-[-0.02em] text-white">Chronos</span>
+              <span className="block font-sans text-[1.02rem] tracking-[-0.02em] text-white">Campus Grid</span>
               <span className="block font-mono text-[0.55rem] uppercase tracking-[0.16em] text-white/35">Timetable OS</span>
             </span>
           </Link>

@@ -16,7 +16,7 @@
 
 import type {
   AssignmentRef, DatedSession, Placement, RoomRef, SectionRef, FacultyRef,
-  SchedulerRules, SlotRef, TeachingDay,
+  SchedulingRules, SlotRef, TeachingDay,
 } from "./types";
 import { eligibleRoomsFor } from "./rooms";
 import { slotsInWindow, spanOf } from "./time";
@@ -40,7 +40,7 @@ export interface ExpandInput {
   rooms: RoomRef[];
   sections: SectionRef[];
   faculty: FacultyRef[];
-  rules: SchedulerRules;
+  schedulingRules: SchedulingRules;
   /** EXTRA classes already on the timetable — they occupy time but aren't counted. */
   fixedSessions?: DatedSession[];
 }
@@ -170,7 +170,7 @@ export function distributedTrimIndices(n: number, surplus: number): number[] {
 
 export function expandToSemester(input: ExpandInput): ExpandResult {
   const {
-    assignments, pattern, teachingDays, slots, rooms, sections, faculty, rules,
+    assignments, pattern, teachingDays, slots, rooms, sections, faculty, schedulingRules,
   } = input;
 
   const sectionById = new Map(sections.map((s) => [s.id, s]));
@@ -178,8 +178,8 @@ export function expandToSemester(input: ExpandInput): ExpandResult {
   const assignmentById = new Map(assignments.map((a) => [a.id, a]));
   const ordered = [...slots].sort((a, b) => a.order - b.order);
   const classOrders = ordered.filter((s) => s.kind === "CLASS").map((s) => s.order);
-  const windows = buildWindows(ordered, rules.allowSessionsAcrossBreak);
-  const afternoonOrders = slotsInWindow(ordered, rules.afternoonWindowStart, rules.afternoonWindowEnd);
+  const windows = buildWindows(ordered, schedulingRules.allowSessionsAcrossBreak);
+  const afternoonOrders = slotsInWindow(ordered, schedulingRules.afternoonWindowStart, schedulingRules.afternoonWindowEnd);
   const totalDays = teachingDays.length;
 
   const label = (a: AssignmentRef) => `${a.subjectCode} · §${a.sectionNumber}`;
@@ -293,7 +293,7 @@ export function expandToSemester(input: ExpandInput): ExpandResult {
     for (let n = 0; n < missing; n++) {
       const best = bestRemainder({
         a, section, fac, eligible, blocked, subjectKey,
-        teachingDays, windows, classOrders, afternoonOrders, rules, ledger, totalDays,
+        teachingDays, windows, classOrders, afternoonOrders, schedulingRules, ledger, totalDays,
       });
       if (!best) break;
       const s: DatedSession = {
@@ -371,15 +371,15 @@ function bestRemainder(ctx: {
   windows: Map<number, number[][]>;
   classOrders: number[];
   afternoonOrders: number[];
-  rules: SchedulerRules;
+  schedulingRules: SchedulingRules;
   ledger: DatedLedger;
   totalDays: number;
 }): { date: string; weekday: number; slotOrder: number; roomId: string } | null {
   const {
     a, section, fac, eligible, blocked, subjectKey, teachingDays, windows,
-    classOrders, afternoonOrders, rules, ledger, totalDays,
+    classOrders, afternoonOrders, schedulingRules, ledger, totalDays,
   } = ctx;
-  const w = rules.weights;
+  const w = schedulingRules.weights;
 
   let best: { date: string; weekday: number; slotOrder: number; roomId: string } | null = null;
   let bestScore = Infinity;
@@ -388,10 +388,10 @@ function bestRemainder(ctx: {
     const day = teachingDays[di];
 
     // ── Hard ────────────────────────────────────────────────────────────
-    if (ledger.assignmentCount(a.id, day.date) >= rules.maxSessionsPerAssignmentPerDay) continue;
+    if (ledger.assignmentCount(a.id, day.date) >= schedulingRules.maxSessionsPerAssignmentPerDay) continue;
 
     const secLoad = ledger.sectionLoad(section.id, day.date);
-    if (secLoad + a.duration > rules.maxHoursPerDayPerSection) continue;
+    if (secLoad + a.duration > schedulingRules.maxHoursPerDayPerSection) continue;
     const facLoad = ledger.facultyLoad(fac.id, day.date);
     if (facLoad + a.duration > fac.maxHoursPerDay) continue;
 
@@ -399,14 +399,14 @@ function bestRemainder(ctx: {
       if (win.some((o) => blocked.has(`${day.patternWeekday}:${o}`))) continue;
       if (!ledger.isFree("section", section.id, day.date, win)) continue;
       if (!ledger.isFree("faculty", fac.id, day.date, win)) continue;
-      if (ledger.consecutive(fac.id, day.date, win, classOrders) > rules.maxConsecutiveHoursPerFaculty) continue;
+      if (ledger.consecutive(fac.id, day.date, win, classOrders) > schedulingRules.maxConsecutiveHoursPerFaculty) continue;
 
       // ── Soft, in the specified priority order ─────────────────────────
       let score = 0;
       score += secLoad * 10 * w.sectionBalance;               // 1. section daily balance
       score += facLoad * 8 * w.facultyBalance;                // 2. faculty daily balance
 
-      if (rules.preferAfternoonBreak && afternoonOrders.length > 0) {   // 3. afternoon break
+      if (schedulingRules.preferAfternoonBreak && afternoonOrders.length > 0) {   // 3. afternoon break
         const freeBefore = ledger.freeWithin(section.id, day.date, afternoonOrders);
         const freeAfter = ledger.freeWithin(section.id, day.date, afternoonOrders, win);
         if (freeBefore > 0 && freeAfter === 0) score += 40 * w.afternoonBreak;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const RECOVERY_KEY = "chronos:chunk-recovery";
+const RECOVERY_KEY = "Campus Grid:chunk-recovery";
 
 export default function GlobalError({
   error,

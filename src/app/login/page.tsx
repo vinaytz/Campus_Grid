@@ -52,7 +52,7 @@ export default function LoginPage() {
     <main className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
       {/* Tool chrome, with a faint drawing grid — the surface being signed into */}
       <aside className="chrome relative hidden flex-col justify-between overflow-hidden p-10 text-white lg:flex">
-        <span className="relative font-sans text-sm tracking-[-0.01em]">Chronos</span>
+        <span className="relative font-sans text-sm tracking-[-0.01em]">Campus Grid</span>
         <div className="relative max-w-sm">
           <p className="mb-3 font-mono text-[0.62rem] uppercase tracking-[0.14em] text-white/35">
             Timetable administration
@@ -73,7 +73,7 @@ export default function LoginPage() {
 
       <section className="relative flex items-center justify-center overflow-hidden bg-ground px-5 py-14">
         <div className="w-full max-w-[21rem]">
-          <span className="font-sans text-sm tracking-[-0.01em] lg:hidden">Chronos</span>
+          <span className="font-sans text-sm tracking-[-0.01em] lg:hidden">Campus Grid</span>
           <div className="relative rounded-lg border border-line bg-surface p-6">
           <h2 className="font-sans text-2xl tracking-[-0.01em]">Sign in</h2>
           <p className="mb-6 mt-2 text-[0.8125rem] text-muted">

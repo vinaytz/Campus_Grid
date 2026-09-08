@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { expandToSemester, distributedTrimIndices, type PatternCell } from "@/lib/scheduler/expand";
 import { buildTeachingDays, teachingWeekCount } from "@/lib/scheduler/calendar";
 import { auditTimetable } from "@/lib/scheduler/audit";
-import { SLOTS, ROOMS, SECTIONS, FACULTY, RULES, SEMESTER, assignment } from "./fixtures";
+import { SLOTS, ROOMS, SECTIONS, FACULTY, schedulingRules, SEMESTER, assignment } from "./fixtures";
 
 const DAYS = buildTeachingDays(SEMESTER);          // 70 days, 14 weeks, Mon–Fri
 const WEEKS = teachingWeekCount(DAYS);
@@ -14,7 +14,7 @@ function base(over: Record<string, unknown> = {}) {
     rooms: ROOMS,
     sections: SECTIONS,
     faculty: FACULTY,
-    rules: RULES,
+    schedulingRules: schedulingRules,
     ...over,
   };
 }
@@ -217,7 +217,7 @@ describe("exact semester session counts", () => {
       rooms: ROOMS,
       sections: SECTIONS,
       faculty: FACULTY,
-      rules: RULES,
+      schedulingRules: schedulingRules,
     });
 
     expect(report.hardViolations).toEqual([]);

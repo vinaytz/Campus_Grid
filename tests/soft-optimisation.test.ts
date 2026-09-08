@@ -3,14 +3,14 @@ import { scoreTimetable } from "@/lib/scheduler/score";
 import { buildTeachingDays } from "@/lib/scheduler/calendar";
 import { slotsInWindow, minutesOf } from "@/lib/scheduler/time";
 import type { DatedSession } from "@/lib/scheduler/types";
-import { SLOTS, ROOMS, SECTIONS, FACULTY, RULES, SEMESTER, assignment } from "./fixtures";
+import { SLOTS, ROOMS, SECTIONS, FACULTY, schedulingRules, SEMESTER, assignment } from "./fixtures";
 
 const DAYS = buildTeachingDays(SEMESTER);
 
 function score(sessions: DatedSession[], assignments = [assignment({ id: "a-1", requiredSessions: sessions.length })]) {
   return scoreTimetable({
     sessions, assignments, teachingDays: DAYS, slots: SLOTS,
-    sections: SECTIONS, faculty: FACULTY, rooms: ROOMS, rules: RULES,
+    sections: SECTIONS, faculty: FACULTY, rooms: ROOMS, schedulingRules: schedulingRules,
   });
 }
 
@@ -145,7 +145,7 @@ describe("soft scoring reflects timetable quality", () => {
     const off = scoreTimetable({
       sessions: full, assignments, teachingDays: DAYS, slots: SLOTS,
       sections: SECTIONS, faculty: FACULTY, rooms: ROOMS,
-      rules: { ...RULES, weights: { ...RULES.weights, afternoonBreak: 0 } },
+      schedulingRules: { ...schedulingRules, weights: { ...schedulingRules.weights, afternoonBreak: 0 } },
     });
     expect(off.breakdown.afternoonBreak).toBe(0);
   });

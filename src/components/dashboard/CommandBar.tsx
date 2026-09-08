@@ -11,13 +11,13 @@ import {
 const ROUTES = [
   { label: "Overview", href: "/dashboard", icon: LayoutGrid, group: "Go to" },
   { label: "Timetables", href: "/dashboard/timetables", icon: CalendarRange, group: "Go to" },
-  { label: "Teaching load", href: "/dashboard/assignments", icon: Network, group: "Go to" },
+  { label: "Teaching Assignment", href: "/dashboard/assignments", icon: Network, group: "Go to" },
   { label: "Faculty", href: "/dashboard/faculty", icon: Users, group: "Data" },
   { label: "Subjects", href: "/dashboard/subjects", icon: BookMarked, group: "Data" },
   { label: "Rooms", href: "/dashboard/rooms", icon: DoorOpen, group: "Data" },
   { label: "Sections", href: "/dashboard/sections", icon: Layers, group: "Data" },
   { label: "Periods", href: "/dashboard/slots", icon: Clock, group: "Data" },
-  { label: "Scheduling rules", href: "/dashboard/settings", icon: SlidersHorizontal, group: "Data" },
+  { label: "Scheduling schedulingRules", href: "/dashboard/settings", icon: SlidersHorizontal, group: "Data" },
   { label: "Public board", href: "/", icon: Globe, group: "Elsewhere" },
 ];
 

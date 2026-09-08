@@ -66,7 +66,7 @@ describe("spreadsheet-tolerant coercion", () => {
   });
 });
 
-describe("assignment rules", () => {
+describe("assignment schedulingRules", () => {
   const base = { section: OID, subject: OID2, faculty: OID3 };
 
   it("requires an exact semester session count", () => {
@@ -106,7 +106,7 @@ describe("assignment rules", () => {
   });
 });
 
-describe("semester rules", () => {
+describe("semester schedulingRules", () => {
   const base = {
     name: "Odd 2025", academicYear: "2025-26", term: "Odd",
     startDate: "2025-07-21", endDate: "2025-10-31", teachingWeekdays: [1, 2, 3, 4, 5],
@@ -148,7 +148,7 @@ describe("semester rules", () => {
   });
 });
 
-describe("settings rules", () => {
+describe("settings schedulingRules", () => {
   const base = {
     institutionName: "IT", academicYear: "2025-26", term: "Odd",
     workingDays: [1, 2, 3, 4, 5],

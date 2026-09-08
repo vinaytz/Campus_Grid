@@ -16,7 +16,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chronos — Timetable",
+  title: "Campus Grid — Timetable",
   description: "Find your class schedule by section, faculty member, or room.",
 };
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { validateMove, validatePattern } from "@/lib/scheduler/moves";
 import { buildTeachingDays } from "@/lib/scheduler/calendar";
 import type { DatedSession } from "@/lib/scheduler/types";
-import { SLOTS, SLOTS_WITH_BREAK, ROOMS, SECTIONS, FACULTY, RULES, SEMESTER, assignment } from "./fixtures";
+import { SLOTS, SLOTS_WITH_BREAK, ROOMS, SECTIONS, FACULTY, schedulingRules, SEMESTER, assignment } from "./fixtures";
 
 const DAYS = buildTeachingDays(SEMESTER);
 const MONDAY = "2025-07-21";
@@ -23,7 +23,7 @@ function ctx(sessions: (DatedSession & { id: string })[]) {
     rooms: ROOMS,
     sections: SECTIONS,
     faculty: FACULTY,
-    rules: RULES,
+    schedulingRules: schedulingRules,
   };
 }
 
@@ -165,7 +165,7 @@ describe("whole-pattern validation", () => {
     rooms: ROOMS,
     sections: SECTIONS,
     faculty: FACULTY,
-    rules: RULES,
+    schedulingRules: schedulingRules,
     days: [1, 2, 3, 4, 5],
   };
 

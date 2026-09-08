@@ -57,7 +57,7 @@ export default function AdminDashboardPage() {
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold tracking-[.14em] text-white/65">
                 <span className="flex size-8 items-center justify-center rounded-xl bg-accent text-ink"><Sparkles className="size-4" /></span>
-                CHRONOS PLATFORM
+                Campus Grid PLATFORM
               </div>
               <p className="mt-10 text-xs font-semibold uppercase tracking-[.16em] text-moss">Control room</p>
               <h1 className="mt-3 font-sans text-4xl font-semibold tracking-[-.06em] sm:text-5xl">Your universities.</h1>

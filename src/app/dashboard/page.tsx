@@ -29,7 +29,7 @@ const SETUP = [
   { key: "faculty", label: "Add faculty with their IDs", href: "/dashboard/faculty" },
   { key: "subjects", label: "Add subjects with their codes", href: "/dashboard/subjects" },
   { key: "sections", label: "Add sections with student counts", href: "/dashboard/sections" },
-  { key: "assignments", label: "Map teaching load with exact session counts", href: "/dashboard/assignments" },
+  { key: "assignments", label: "Map Teaching Assignment with exact session counts", href: "/dashboard/assignments" },
   { key: "semester", label: "Set the semester dates and holidays", href: "/dashboard/semester" },
 ] as const;
 

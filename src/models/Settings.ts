@@ -2,7 +2,7 @@ import { Schema, model, models, type Model } from "mongoose";
 import type { Types } from "mongoose";
 
 /**
- * Single-document collection holding institution-wide scheduling rules.
+ * Single-document collection holding institution-wide scheduling schedulingRules.
  *
  * Note what is *not* here: a universal lunch break. There is no time of day at
  * which every section is idle. Instead `afternoonWindow*` describes a window in

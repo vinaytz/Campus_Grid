@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
           <div className="relative">
             <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
               <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-ink"><Sparkles className="size-4" /></span>
-              Chronos
+              Campus Grid
             </div>
             <p className="mt-20 max-w-md font-sans text-5xl font-semibold leading-[.98] tracking-[-.06em]">
               The calm control room for every campus.

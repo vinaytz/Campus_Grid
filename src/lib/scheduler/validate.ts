@@ -48,7 +48,7 @@ export interface Candidate {
   facultyUnavailability?: { day: number; slotOrder: number }[];
 }
 
-export interface Rules {
+export interface SchedulingRules {
   workingDays: number[];
   maxHoursPerDayPerSection: number;
   maxConsecutiveHoursPerFaculty: number;
@@ -72,7 +72,7 @@ function requirementOf(c: Candidate): RoomRequirement {
 }
 
 /**
- * The room rules for a placed entry, read off its assignment.
+ * The room schedulingRules for a placed entry, read off its assignment.
  *
  * Without this the inspector would happily offer a room that a FIXED or
  * ALLOWED_ROOMS assignment may not use, and the admin would only find out when
@@ -150,14 +150,14 @@ export function checkPlacement(
   slotOrder: number,
   slots: LiteSlot[],
   occ: Occupancy,
-  rules: Rules,
+  schedulingRules: SchedulingRules,
   room?: LiteRoom
 ): Verdict {
-  if (!rules.workingDays.includes(day))
+  if (!schedulingRules.workingDays.includes(day))
     return { ok: false, reason: "Not a working day." };
 
   // Duration, contiguity and break-crossing in one shared check.
-  const span = spanIsContiguous(slots, slotOrder, c.duration, rules.allowSessionsAcrossBreak);
+  const span = spanIsContiguous(slots, slotOrder, c.duration, schedulingRules.allowSessionsAcrossBreak);
   if (!span.ok) return span;
 
   if (room) {
@@ -187,10 +187,10 @@ export function checkPlacement(
   }
 
   const load = occ.sectionLoad(c.sectionId, day);
-  if (load + c.duration > rules.maxHoursPerDayPerSection)
-    return { ok: false, reason: `Section already has ${load} periods that day (cap ${rules.maxHoursPerDayPerSection}).` };
+  if (load + c.duration > schedulingRules.maxHoursPerDayPerSection)
+    return { ok: false, reason: `Section already has ${load} periods that day (cap ${schedulingRules.maxHoursPerDayPerSection}).` };
 
-  const cap = rules.maxSessionsPerAssignmentPerDay ?? 1;
+  const cap = schedulingRules.maxSessionsPerAssignmentPerDay ?? 1;
   if (c.assignmentId && occ.assignmentOnDay(c.assignmentId, day) >= cap) {
     return {
       ok: false,
@@ -208,15 +208,15 @@ export function dropMap(
   c: Candidate,
   slots: LiteSlot[],
   entries: LiteEntry[],
-  rules: Rules,
+  schedulingRules: SchedulingRules,
   room?: LiteRoom
 ): Map<string, Verdict> {
   const occ = new Occupancy(entries, c.entryId);
   const out = new Map<string, Verdict>();
-  for (const day of rules.workingDays) {
+  for (const day of schedulingRules.workingDays) {
     for (const s of slots) {
       if (s.kind === "BREAK") continue;
-      out.set(key(day, s.order), checkPlacement(c, day, s.order, slots, occ, rules, room));
+      out.set(key(day, s.order), checkPlacement(c, day, s.order, slots, occ, schedulingRules, room));
     }
   }
   return out;
