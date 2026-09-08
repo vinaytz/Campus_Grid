@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { api } from "@/hooks/useApi";
 
-/** Ordered to match the real workflow: data → load → calendar → schedulingRules → build. */
+/** Ordered to match the real workflow: data → load → calendar → Scheduling Rules → build. */
 const NAV = [
   {
     group: null,
@@ -32,7 +32,7 @@ const NAV = [
     items: [
       { href: "/dashboard/assignments", label: "Teaching Assignment", icon: Network },
       { href: "/dashboard/semester", label: "Semester", icon: CalendarDays },
-      { href: "/dashboard/settings", label: "schedulingRules", icon: SlidersHorizontal },
+      { href: "/dashboard/settings", label: "Scheduling Rules", icon: SlidersHorizontal },
     ],
   },
   {

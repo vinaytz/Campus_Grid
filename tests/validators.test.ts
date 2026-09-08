@@ -55,6 +55,19 @@ describe("spreadsheet-tolerant coercion", () => {
 
   it("still rejects a numeric cell that is present but nonsense", () => {
     expect(facultySchema.safeParse({ facultyId: "1", name: "Someone", maxHoursPerDay: "99" }).success).toBe(false);
+  });
+
+  it("requires structured recurring faculty unavailability", () => {
+    expect(facultySchema.parse({
+      facultyId: "1",
+      name: "Someone",
+      unavailability: [{ day: 1, slotOrder: 2 }, { day: 3, slotOrder: 4 }],
+    }).unavailability).toEqual([{ day: 1, slotOrder: 2 }, { day: 3, slotOrder: 4 }]);
+    expect(facultySchema.safeParse({
+      facultyId: "1",
+      name: "Someone",
+      unavailability: ["2", "4"],
+    }).success).toBe(false);
     expect(roomSchema.safeParse({ code: "1", block: "A", capacity: "0" }).success).toBe(false);
   });
 

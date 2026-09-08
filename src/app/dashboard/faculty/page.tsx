@@ -1,6 +1,7 @@
 "use client";
 import { ResourceScreen } from "@/components/dashboard/ResourceScreen";
 import { Badge } from "@/components/ui/Badge";
+import { DAY_NAMES } from "@/lib/constants";
 
 export default function FacultyPage() {
   return (
@@ -38,10 +39,16 @@ export default function FacultyPage() {
           { name: "maxHoursPerDay", label: "Max periods per day", type: "number", defaultValue: 5 },
           { name: "maxHoursPerWeek", label: "Max periods per week", type: "number", defaultValue: 18 },
           {
-            name: "unavailability", label: "Blocked periods", type: "multiselect",
-            options: (lookups.slots ?? []).map((slot: any) => ({
-              value: String(slot.order), label: `${slot.label} (${slot.start}-${slot.end})`,
-            })),
+            name: "unavailability", label: "Blocked periods", type: "availability",
+            hint: "Select the weekday and period for recurring weekly unavailability.",
+            options: [0, 1, 2, 3, 4, 5, 6].flatMap((day) =>
+              (lookups.slots ?? [])
+                .filter((slot: any) => slot.kind !== "BREAK")
+                .map((slot: any) => ({
+                  value: `${day}:${slot.order}`,
+                  label: `${DAY_NAMES[day]} · ${slot.label} (${slot.start}-${slot.end})`,
+                }))
+            ),
           },
           { name: "active", label: "Available for scheduling", type: "toggle", defaultValue: true, full: true },
         ],

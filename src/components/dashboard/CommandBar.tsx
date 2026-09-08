@@ -17,7 +17,7 @@ const ROUTES = [
   { label: "Rooms", href: "/dashboard/rooms", icon: DoorOpen, group: "Data" },
   { label: "Sections", href: "/dashboard/sections", icon: Layers, group: "Data" },
   { label: "Periods", href: "/dashboard/slots", icon: Clock, group: "Data" },
-  { label: "Scheduling schedulingRules", href: "/dashboard/settings", icon: SlidersHorizontal, group: "Data" },
+  { label: "Scheduling Rules", href: "/dashboard/settings", icon: SlidersHorizontal, group: "Data" },
   { label: "Public board", href: "/", icon: Globe, group: "Elsewhere" },
 ];
 

@@ -61,6 +61,22 @@
   background-size: 8px 8px;
 }
 
+.login-grid {
+  background-color: #F7F3EC;
+  background-image:
+    linear-gradient(rgba(12,59,46,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(12,59,46,.055) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.login-grid::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: radial-gradient(circle at 50% 45%, rgba(255,253,248,.92), rgba(247,243,236,.5) 42%, transparent 76%);
+}
+
 /* Tool chrome: graphite with a hairline of light along the top edge. */
 .chrome { background-color: theme("colors.ink"); }
 

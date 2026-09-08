@@ -71,8 +71,8 @@ export default function LoginPage() {
         </Link>
       </aside>
 
-      <section className="relative flex items-center justify-center overflow-hidden bg-ground px-5 py-14">
-        <div className="w-full max-w-[21rem]">
+      <section className="login-grid relative flex items-center justify-center overflow-hidden bg-ground px-5 py-14">
+        <div className="relative z-10 w-full max-w-[21rem]">
           <span className="font-sans text-sm tracking-[-0.01em] lg:hidden">Campus Grid</span>
           <div className="relative rounded-lg border border-line bg-surface p-6">
           <h2 className="font-sans text-2xl tracking-[-0.01em]">Sign in</h2>

@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 export type FieldDef = {
   name: string;
   label: string;
-  type?: "text" | "number" | "time" | "date" | "select" | "email" | "toggle" | "tags" | "multiselect";
+  type?: "text" | "number" | "time" | "date" | "select" | "email" | "toggle" | "tags" | "multiselect" | "availability";
   options?: { value: string; label: string }[];
   /** tags only: one-click suggestions. The field still accepts anything typed. */
   suggestions?: readonly string[];
@@ -86,10 +86,12 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
       const v = (row as any)[f.name];
       if (f.type === "tags") {
         next[f.name] = Array.isArray(v) ? v : [];
-      } else if (f.type === "multiselect") {
+      } else if (f.type === "multiselect" || f.type === "availability") {
         // Populated refs arrive as objects; the form works in ids.
         next[f.name] = Array.isArray(v)
-          ? v.map((x: any) => (x && typeof x === "object" && "_id" in x ? String(x._id) : String(x)))
+          ? v.map((x: any) => f.type === "availability"
+            ? `${Number(x?.day)}:${Number(x?.slotOrder)}`
+            : (x && typeof x === "object" && "_id" in x ? String(x._id) : String(x)))
           : [];
       } else {
         next[f.name] = v && typeof v === "object" && "_id" in v ? v._id : v ?? "";
@@ -106,6 +108,14 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
     const id = (editing as any)._id;
     const payload = { ...editing } as Record<string, unknown>;
     delete payload._id;
+    for (const field of fields) {
+      if (field.type === "availability" && Array.isArray(payload[field.name])) {
+        payload[field.name] = (payload[field.name] as string[]).map((value) => {
+          const [day, slotOrder] = value.split(":").map(Number);
+          return { day, slotOrder };
+        });
+      }
+    }
 
     try {
       await api(`/api/admin/${config.resource}${id ? `/${id}` : ""}`, {
@@ -234,10 +244,11 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
                 </div>
               );
             }
-            if (f.type === "multiselect") {
+            if (f.type === "multiselect" || f.type === "availability") {
               return (
                 <div key={f.name} className={wrap}>
-                  <MultiSelect label={f.label} value={Array.isArray(value) ? value : []}
+                  <MultiSelect label={f.label} hint={f.type === "availability" ? "Recurring weekly constraints" : undefined}
+                    value={Array.isArray(value) ? value : []}
                     onChange={set} options={f.options ?? []} emptyHint={f.placeholder} />
                 </div>
               );
