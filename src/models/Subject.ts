@@ -1,6 +1,8 @@
 import { Schema, model, models, type Model } from "mongoose";
+import type { Types } from "mongoose";
 
 export interface ISubject {
+  universityId?: Types.ObjectId;
   code: string;   // "ECE281"
   name: string;   // "Introduction to IoT"
   department: string;
@@ -14,7 +16,8 @@ export interface ISubject {
 
 const SubjectSchema = new Schema<ISubject>(
   {
-    code: { type: String, required: true, unique: true, trim: true, uppercase: true },
+    universityId: { type: Schema.Types.ObjectId, ref: "University", index: true },
+    code: { type: String, required: true, trim: true, uppercase: true },
     name: { type: String, required: true, trim: true },
     department: { type: String, required: true, trim: true },
     type: {
@@ -30,6 +33,7 @@ const SubjectSchema = new Schema<ISubject>(
 );
 
 SubjectSchema.index({ name: "text", code: "text" });
+SubjectSchema.index({ universityId: 1, code: 1 }, { unique: true });
 
 const SubjectModel = (models.Subject as Model<ISubject>) || model<ISubject>("Subject", SubjectSchema);
 export default SubjectModel;

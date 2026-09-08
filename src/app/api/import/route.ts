@@ -1,5 +1,5 @@
 import { connectAndRegister } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireUniversityAdmin } from "@/lib/auth";
 import { previewImport, commitImport, templateFor, type ImportResource } from "@/lib/import";
 import { importCommitSchema } from "@/lib/validators";
 import { ok, fail, handleError, parseBody } from "@/lib/api";
@@ -20,7 +20,7 @@ function resourceFrom(value: string | null): ImportResource {
 /** Hands back a blank CSV template with example rows. */
 export async function GET(req: Request) {
   try {
-    await requireAdmin();
+    await requireUniversityAdmin();
     const { searchParams } = new URL(req.url);
     const resource = resourceFrom(searchParams.get("resource"));
 
@@ -41,12 +41,15 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { searchParams } = new URL(req.url);
     const resource = resourceFrom(searchParams.get("resource"));
 
-    const form = await req.formData().catch(() => null);
+    const contentType = req.headers.get("content-type") ?? "";
+    const form = contentType.startsWith("multipart/form-data")
+      ? await req.formData()
+      : null;
     let text: string;
 
     if (form) {
@@ -60,7 +63,7 @@ export async function POST(req: Request) {
       text = String(body.text);
     }
 
-    const preview = await previewImport(resource, text);
+    const preview = await previewImport(resource, text, session.universityId ?? undefined);
     return ok(preview);
   } catch (e) {
     return handleError(e);
@@ -70,10 +73,10 @@ export async function POST(req: Request) {
 /** Commits a previewed batch, all or nothing. */
 export async function PUT(req: Request) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const body = await parseBody(req, importCommitSchema);
-    const result = await commitImport(body.resource, body.rows as Record<string, unknown>[]);
+    const result = await commitImport(body.resource, body.rows as Record<string, unknown>[], session.universityId ?? undefined);
     return ok(result);
   } catch (e) {
     return handleError(e);

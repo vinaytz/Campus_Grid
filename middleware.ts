@@ -14,7 +14,13 @@ export async function middleware(req: NextRequest) {
   if (pathname === "/login" && session) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
+  if (pathname.startsWith("/adminDashboard") && (!session || session.role !== "PLATFORM_ADMIN")) {
+    return NextResponse.redirect(new URL("/adminLogin", req.url));
+  }
+  if (pathname === "/adminLogin" && session?.role === "PLATFORM_ADMIN") {
+    return NextResponse.redirect(new URL("/adminDashboard", req.url));
+  }
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/dashboard/:path*", "/login"] };
+export const config = { matcher: ["/dashboard/:path*", "/login", "/adminDashboard/:path*", "/adminLogin"] };

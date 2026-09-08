@@ -9,7 +9,9 @@ if (process.env.NODE_ENV === "production" && !configuredSecret) {
 }
 const secret = new TextEncoder().encode(configuredSecret ?? "dev-only-insecure-secret-change-me");
 
-export type SessionUser = { id: string; name: string; email: string; role: string };
+export type SessionUser = {
+  id: string; name: string; email: string; role: string; universityId?: string | null;
+};
 
 export async function hashPassword(plain: string) {
   return bcrypt.hash(plain, 12);
@@ -48,6 +50,7 @@ export async function readToken(token?: string): Promise<SessionUser | null> {
       name: String(payload.name),
       email: String(payload.email),
       role: String(payload.role),
+      universityId: payload.universityId ? String(payload.universityId) : null,
     };
   } catch {
     return null;
@@ -67,8 +70,33 @@ export async function requireAdmin() {
     err.status = 401;
     throw err;
   }
-  if (session.role !== "ADMIN") {
+  if (!["ADMIN", "UNIVERSITY_ADMIN"].includes(session.role)) {
     const err = new Error("Administrator access is required.") as Error & { status?: number };
+    err.status = 403;
+    throw err;
+  }
+  return session;
+}
+
+export async function requireUniversityAdmin() {
+  const session = await requireAdmin();
+  if (!["ADMIN", "UNIVERSITY_ADMIN"].includes(session.role) || !session.universityId) {
+    const err = new Error("University administrator access is required.") as Error & { status?: number };
+    err.status = 403;
+    throw err;
+  }
+  return session;
+}
+
+export async function requirePlatformAdmin() {
+  const session = await getSession();
+  if (!session) {
+    const err = new Error("Sign in to continue.") as Error & { status?: number };
+    err.status = 401;
+    throw err;
+  }
+  if (session.role !== "PLATFORM_ADMIN") {
+    const err = new Error("Platform administrator access is required.") as Error & { status?: number };
     err.status = 403;
     throw err;
   }

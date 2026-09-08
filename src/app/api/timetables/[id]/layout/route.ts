@@ -1,6 +1,6 @@
 import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
-import { requireAdmin } from "@/lib/auth";
+import { requireUniversityAdmin } from "@/lib/auth";
 import {
   loadUniverse, validatePattern, expandToSemester, auditTimetable, scoreTimetable,
   type DatedSession,
@@ -42,18 +42,18 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function PUT(req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
     const body = layoutSchema.parse(await req.json());
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: session.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
     if (doc.status === "PUBLISHED") {
       return fail("This timetable is published. Move it back to draft before editing.", 409);
     }
 
-    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
+    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined, universityId: session.universityId ?? undefined });
     const patternWeekdays = u.teachingDays.length
       ? [...new Set(u.teachingDays.map((d) => d.patternWeekday))].sort()
       : (u.settings?.workingDays ?? [1, 2, 3, 4, 5]);
@@ -99,17 +99,17 @@ export async function PUT(req: Request, { params }: Ctx) {
  */
 export async function POST(_req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: session.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
     if (doc.status === "PUBLISHED") {
       return fail("This timetable is published. Move it back to draft before editing.", 409);
     }
 
-    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
+    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined, universityId: session.universityId ?? undefined });
     if (u.teachingDays.length === 0) {
       return fail("This timetable has no semester calendar, so it cannot be expanded across dates.", 400);
     }

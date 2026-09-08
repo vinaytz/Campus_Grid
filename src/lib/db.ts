@@ -32,6 +32,7 @@ export async function connectAndRegister() {
   const conn = await connectDB();
   await Promise.all([
     import("@/models/User"),
+    import("@/models/University"),
     import("@/models/Settings"),
     import("@/models/TimeSlot"),
     import("@/models/Room"),

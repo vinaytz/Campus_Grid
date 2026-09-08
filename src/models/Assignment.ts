@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from "mongoose";
+import type { Types } from "mongoose";
 
 /**
  * The join that drives everything: this faculty member teaches this subject to
@@ -19,6 +20,7 @@ import { Schema, model, models, type Model } from "mongoose";
 export type RoomSelection = "AUTO" | "FIXED" | "ALLOWED_ROOMS";
 
 export interface IAssignment {
+  universityId?: Types.ObjectId;
   section: any;
   subject: any;
   faculty: any;
@@ -42,6 +44,7 @@ export interface IAssignment {
 
 const AssignmentSchema = new Schema<IAssignment>(
   {
+    universityId: { type: Schema.Types.ObjectId, ref: "University", index: true },
     section: { type: Schema.Types.ObjectId, ref: "Section", required: true },
     subject: { type: Schema.Types.ObjectId, ref: "Subject", required: true },
     faculty: { type: Schema.Types.ObjectId, ref: "Faculty", required: true },
@@ -68,7 +71,7 @@ const AssignmentSchema = new Schema<IAssignment>(
   { timestamps: true }
 );
 
-AssignmentSchema.index({ section: 1, subject: 1, kind: 1 }, { unique: true });
+AssignmentSchema.index({ universityId: 1, section: 1, subject: 1, kind: 1 }, { unique: true });
 
 const AssignmentModel =
   (models.Assignment as Model<IAssignment>) || model<IAssignment>("Assignment", AssignmentSchema);

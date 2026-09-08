@@ -65,6 +65,7 @@ export interface IViolation {
 }
 
 export interface ITimetable {
+  universityId?: Types.ObjectId;
   name: string;
   semester?: any;
   academicYear: string;
@@ -148,6 +149,7 @@ const ViolationSchema = new Schema<IViolation>(
 
 const TimetableSchema = new Schema<ITimetable>(
   {
+    universityId: { type: Schema.Types.ObjectId, ref: "University", index: true },
     name: { type: String, required: true, trim: true },
     semester: { type: Schema.Types.ObjectId, ref: "Semester" },
     academicYear: { type: String, default: "2025-26" },
@@ -192,6 +194,7 @@ const TimetableSchema = new Schema<ITimetable>(
 );
 
 TimetableSchema.index({ status: 1, updatedAt: -1 });
+TimetableSchema.index({ universityId: 1, status: 1, updatedAt: -1 });
 
 const TimetableModel =
   (models.Timetable as Model<ITimetable>) || model<ITimetable>("Timetable", TimetableSchema);

@@ -7,27 +7,27 @@ import Assignment from "@/models/Assignment";
 import Timetable from "@/models/Timetable";
 import TimeSlot from "@/models/TimeSlot";
 import Semester from "@/models/Semester";
-import { requireAdmin } from "@/lib/auth";
+import { requireUniversityAdmin } from "@/lib/auth";
 import { buildTeachingDays, teachingWeekCount } from "@/lib/scheduler";
 import { ok, handleError } from "@/lib/api";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
 
     const [faculty, subjects, rooms, sections, assignments, slots, published, latest, semester] =
       await Promise.all([
-        Faculty.countDocuments({ active: true }),
-        Subject.countDocuments({ active: true }),
-        Room.countDocuments({ active: true }),
-        Section.countDocuments({ active: true }),
-        Assignment.find({ active: true }).lean(),
-        TimeSlot.countDocuments({ active: true, kind: "CLASS" }),
-        Timetable.countDocuments({ status: "PUBLISHED" }),
-        Timetable.findOne().sort({ updatedAt: -1 })
+        Faculty.countDocuments({ universityId: session.universityId, active: true }),
+        Subject.countDocuments({ universityId: session.universityId, active: true }),
+        Room.countDocuments({ universityId: session.universityId, active: true }),
+        Section.countDocuments({ universityId: session.universityId, active: true }),
+        Assignment.find({ universityId: session.universityId, active: true }).lean(),
+        TimeSlot.countDocuments({ universityId: session.universityId, active: true, kind: "CLASS" }),
+        Timetable.countDocuments({ universityId: session.universityId, status: "PUBLISHED" }),
+        Timetable.findOne({ universityId: session.universityId }).sort({ updatedAt: -1 })
           .select("name status stats validation updatedAt").lean(),
-        Semester.findOne({ active: true }).sort({ updatedAt: -1 }).lean(),
+        Semester.findOne({ universityId: session.universityId, active: true }).sort({ updatedAt: -1 }).lean(),
       ]);
 
     // Semester demand vs supply, which is what actually decides feasibility.

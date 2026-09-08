@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from "mongoose";
+import type { Types } from "mongoose";
 
 /**
  * The academic calendar a timetable is generated against.
@@ -28,6 +29,7 @@ export interface ICalendarException {
 }
 
 export interface ISemester {
+  universityId?: Types.ObjectId;
   name: string;
   academicYear: string;
   term: string;
@@ -55,6 +57,7 @@ const ExceptionSchema = new Schema<ICalendarException>(
 
 const SemesterSchema = new Schema<ISemester>(
   {
+    universityId: { type: Schema.Types.ObjectId, ref: "University", index: true },
     name: { type: String, required: true, trim: true },
     academicYear: { type: String, default: "2025-26" },
     term: { type: String, default: "Odd" },

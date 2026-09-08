@@ -14,8 +14,20 @@ export async function POST(req: Request) {
       return fail("That email and password don't match an account.", 401);
     }
 
+    let universityActive = true;
+    let universityId = user.universityId ? String(user.universityId) : null;
+    if (universityId) {
+      const University = (await import("@/models/University")).default;
+      const university = await University.findById(universityId).select("active").lean();
+      universityActive = !!university?.active;
+    }
+    if (user.role !== "PLATFORM_ADMIN" && !universityActive) {
+      return fail("This university is currently inactive.", 403);
+    }
     const session = {
-      id: String(user._id), name: user.name, email: user.email, role: user.role,
+      id: String(user._id), name: user.name, email: user.email,
+      role: user.role === "ADMIN" ? "UNIVERSITY_ADMIN" : user.role,
+      universityId,
     };
     await createSession(session);
     return ok(session);

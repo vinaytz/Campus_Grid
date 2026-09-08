@@ -293,7 +293,8 @@ export function templateFor(resource: ImportResource) {
  */
 export async function previewImport(
   resource: ImportResource,
-  text: string
+  text: string,
+  universityId?: string
 ): Promise<ImportPreview> {
   const spec = SPECS[resource];
   const parsed = parseRows(text, spec.aliases);
@@ -308,10 +309,10 @@ export async function previewImport(
   }
 
   const lookups: Lookups = {
-    rooms: await Room.find().select("code block").lean(),
-    faculty: await Faculty.find().select("facultyId name").lean(),
-    subjects: await Subject.find().select("code type defaultDuration").lean(),
-    sections: await Section.find().select("number").lean(),
+    rooms: await Room.find(universityId ? { universityId } : {}).select("code block").lean(),
+    faculty: await Faculty.find(universityId ? { universityId } : {}).select("facultyId name").lean(),
+    subjects: await Subject.find(universityId ? { universityId } : {}).select("code type defaultDuration").lean(),
+    sections: await Section.find(universityId ? { universityId } : {}).select("number").lean(),
   };
 
   // Resolve human-readable references first, where the resource needs it.
@@ -357,7 +358,7 @@ export async function previewImport(
   let updated = 0;
   if (valid.length) {
     const keys = valid.map((r) => spec.keyOf(r));
-    const existing = await spec.model.find({ $or: keys }).lean();
+    const existing = await spec.model.find({ ...(universityId ? { universityId } : {}), $or: keys }).lean();
     const existingKeys = new Set(existing.map((e: any) => JSON.stringify(spec.keyOf(e))));
     updated = valid.filter((r) => existingKeys.has(JSON.stringify(spec.keyOf(r)))).length;
   }
@@ -384,7 +385,8 @@ export async function previewImport(
  */
 export async function commitImport(
   resource: ImportResource,
-  rows: Record<string, unknown>[]
+  rows: Record<string, unknown>[],
+  universityId?: string
 ): Promise<{ created: number; updated: number }> {
   const spec = SPECS[resource];
 
@@ -403,7 +405,11 @@ export async function commitImport(
   const docs = parsed.map((p) => (p as { success: true; data: any }).data);
 
   const ops = docs.map((d) => ({
-    updateOne: { filter: spec.keyOf(d), update: { $set: d }, upsert: true },
+    updateOne: {
+      filter: { ...(universityId ? { universityId } : {}), ...spec.keyOf(d) },
+      update: { $set: { ...d, ...(universityId ? { universityId } : {}) } },
+      upsert: true,
+    },
   }));
 
   const res = await spec.model.bulkWrite(ops, { ordered: true });

@@ -1,6 +1,6 @@
 import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
-import { requireAdmin } from "@/lib/auth";
+import { requireUniversityAdmin } from "@/lib/auth";
 import { moveEntrySchema } from "@/lib/validators";
 import { loadUniverse, validatePattern } from "@/lib/scheduler";
 import { ok, fail, handleError, parseBody } from "@/lib/api";
@@ -17,12 +17,12 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
     const body = await parseBody(req, moveEntrySchema);
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: session.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
     if (doc.status === "PUBLISHED") {
       return fail("This timetable is published. Move it back to draft before editing.", 409);
@@ -74,12 +74,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 export async function DELETE(req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
     const { entryId } = await req.json();
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: session.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
     doc.entries.pull({ _id: entryId });
     doc.stats.patternPlaced = doc.entries.length;

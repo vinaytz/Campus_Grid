@@ -5,7 +5,8 @@ export interface IUser {
   name: string;
   email: string;
   passwordHash: string;
-  role: "ADMIN" | "COORDINATOR" | "VIEWER";
+  role: "PLATFORM_ADMIN" | "UNIVERSITY_ADMIN" | "ADMIN" | "COORDINATOR" | "VIEWER";
+  universityId?: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,7 +16,12 @@ const UserSchema = new Schema<IUser>(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true, select: false },
-    role: { type: String, enum: ["ADMIN", "COORDINATOR", "VIEWER"], default: "ADMIN" },
+    role: {
+      type: String,
+      enum: ["PLATFORM_ADMIN", "UNIVERSITY_ADMIN", "ADMIN", "COORDINATOR", "VIEWER"],
+      default: "UNIVERSITY_ADMIN",
+    },
+    universityId: { type: Schema.Types.ObjectId, ref: "University", default: null, index: true },
   },
   { timestamps: true }
 );

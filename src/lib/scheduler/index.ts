@@ -55,22 +55,24 @@ const DEFAULT_WEIGHTS = {
 export async function loadUniverse(opts: {
   sections?: string[];
   semesterId?: string;
+  universityId?: string;
 } = {}): Promise<SchedulingUniverse> {
   await connectAndRegister();
 
+  const tenant = opts.universityId ? { universityId: opts.universityId } : {};
   const [settings, slots, rooms, faculty, sections] = await Promise.all([
-    Settings.findOne().lean(),
-    TimeSlot.find({ active: true }).sort({ order: 1 }).lean(),
-    Room.find({ active: true }).lean(),
-    Faculty.find({ active: true }).lean(),
-    Section.find({ active: true }).lean(),
+    Settings.findOne(tenant).lean(),
+    TimeSlot.find({ ...tenant, active: true }).sort({ order: 1 }).lean(),
+    Room.find({ ...tenant, active: true }).lean(),
+    Faculty.find({ ...tenant, active: true }).lean(),
+    Section.find({ ...tenant, active: true }).lean(),
   ]);
 
   const semester = opts.semesterId
-    ? await Semester.findById(opts.semesterId).lean()
-    : await Semester.findOne({ active: true }).sort({ updatedAt: -1 }).lean();
+    ? await Semester.findOne({ _id: opts.semesterId, ...tenant }).lean()
+    : await Semester.findOne({ ...tenant, active: true }).sort({ updatedAt: -1 }).lean();
 
-  const filter: Record<string, unknown> = { active: true };
+  const filter: Record<string, unknown> = { ...tenant, active: true };
   if (opts.sections?.length) filter.section = { $in: opts.sections };
 
   const rawAssignments = await Assignment.find(filter)
@@ -169,6 +171,7 @@ export interface GenerateOptions {
   sections?: string[];
   semesterId?: string;
   seed?: number;
+  universityId?: string;
 }
 
 export interface GenerateOutcome {

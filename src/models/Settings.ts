@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from "mongoose";
+import type { Types } from "mongoose";
 
 /**
  * Single-document collection holding institution-wide scheduling rules.
@@ -10,6 +11,7 @@ import { Schema, model, models, type Model } from "mongoose";
  * 2403 at 14:00. See scheduler/score.ts.
  */
 export interface ISettings {
+  universityId?: Types.ObjectId;
   institutionName: string;
   academicYear: string;
   term: string;
@@ -43,6 +45,7 @@ export interface ISettings {
 
 const SettingsSchema = new Schema<ISettings>(
   {
+    universityId: { type: Schema.Types.ObjectId, ref: "University", index: true },
     institutionName: { type: String, default: "Institute of Technology" },
     academicYear: { type: String, default: "2025-26" },
     term: { type: String, default: "Odd" },

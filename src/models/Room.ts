@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from "mongoose";
+import type { Types } from "mongoose";
 
 /**
  * A bookable space.
@@ -9,6 +10,7 @@ import { Schema, model, models, type Model } from "mongoose";
  * facility is a data change, not a code change.
  */
 export interface IRoom {
+  universityId?: Types.ObjectId;
   code: string;      // "301"
   block: string;     // "B"
   capacity: number;  // seats — hard-checked against section strength
@@ -19,6 +21,7 @@ export interface IRoom {
 
 const RoomSchema = new Schema<IRoom>(
   {
+    universityId: { type: Schema.Types.ObjectId, ref: "University", index: true },
     code: { type: String, required: true, trim: true },
     block: { type: String, required: true, trim: true, uppercase: true },
     capacity: { type: Number, required: true, min: 1 },
@@ -33,7 +36,7 @@ const RoomSchema = new Schema<IRoom>(
   { timestamps: true }
 );
 
-RoomSchema.index({ block: 1, code: 1 }, { unique: true });
+RoomSchema.index({ universityId: 1, block: 1, code: 1 }, { unique: true });
 RoomSchema.virtual("displayName").get(function () {
   return `${this.block}-${this.code}`;
 });

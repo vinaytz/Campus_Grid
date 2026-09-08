@@ -1,6 +1,6 @@
 import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
-import { requireAdmin } from "@/lib/auth";
+import { requireUniversityAdmin } from "@/lib/auth";
 import { moveSessionSchema, extraSessionSchema } from "@/lib/validators";
 import { loadUniverse, validateMove, weekdayOf, type DatedSession } from "@/lib/scheduler";
 import { ok, fail, handleError, parseBody } from "@/lib/api";
@@ -36,12 +36,12 @@ function toDated(sessions: any[]): (DatedSession & { id: string })[] {
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const authSession = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
     const body = await parseBody(req, moveSessionSchema);
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: authSession.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
     if (String(doc.status) === "PUBLISHED") {
       return fail("This timetable is published. Move it back to draft before editing.", 409);
@@ -53,7 +53,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const session = doc.sessions.id(body.sessionId);
     if (!session) return fail("That session is no longer on this timetable.", 404);
 
-    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
+    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined, universityId: authSession.universityId ?? undefined });
 
     const verdict = validateMove(
       {
@@ -106,18 +106,18 @@ export async function PATCH(req: Request, { params }: Ctx) {
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const authSession = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
     const body = await parseBody(req, extraSessionSchema);
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: authSession.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
     if (doc.status === "PUBLISHED") {
       return fail("This timetable is published. Move it back to draft before editing.", 409);
     }
 
-    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
+    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined, universityId: authSession.universityId ?? undefined });
 
     const verdict = validateMove(
       {
@@ -168,12 +168,12 @@ export async function POST(req: Request, { params }: Ctx) {
 
 export async function DELETE(req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const authSession = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
     const { sessionId } = await req.json();
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: authSession.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
     if (String(doc.status) === "PUBLISHED") {
       return fail("This timetable is published. Move it back to draft before editing.", 409);

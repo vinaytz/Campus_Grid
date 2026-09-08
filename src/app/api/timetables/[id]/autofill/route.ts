@@ -1,6 +1,6 @@
 import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
-import { requireAdmin } from "@/lib/auth";
+import { requireUniversityAdmin } from "@/lib/auth";
 import { loadUniverse, solve, weeklyCellsFor, teachingWeekCount, type Session, type SolverInput } from "@/lib/scheduler";
 import { ok, fail, handleError } from "@/lib/api";
 
@@ -15,17 +15,17 @@ import { ok, fail, handleError } from "@/lib/api";
  */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: session.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
     if (doc.status === "PUBLISHED") {
       return fail("This timetable is published. Move it back to draft before editing.", 409);
     }
 
-    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
+    const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined, universityId: session.universityId ?? undefined });
     if (u.assignments.length === 0) return fail("There are no active assignments to schedule.", 400);
 
     const weeks = u.teachingDays.length ? teachingWeekCount(u.teachingDays) : 14;

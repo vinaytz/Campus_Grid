@@ -22,6 +22,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
 import User from "../src/models/User";
+import University from "../src/models/University";
 import Settings from "../src/models/Settings";
 import Semester from "../src/models/Semester";
 import TimeSlot from "../src/models/TimeSlot";
@@ -39,18 +40,44 @@ async function main() {
   await mongoose.connect(uri);
   console.log("→ connected");
 
+  const obsoleteIndexes: Record<string, string[]> = {
+    timeslots: ["order_1"],
+    rooms: ["block_1_code_1"],
+    faculties: ["facultyId_1"],
+    subjects: ["code_1"],
+    sections: ["number_1"],
+    assignments: ["section_1_subject_1_kind_1"],
+  };
+  const db = mongoose.connection.db;
+  if (!db) throw new Error("MongoDB connection did not expose a database.");
+  for (const [collectionName, names] of Object.entries(obsoleteIndexes)) {
+    const collection = db.collection(collectionName);
+    const indexes = await collection.listIndexes().toArray();
+    for (const name of names) {
+      if (indexes.some((index) => index.name === name)) await collection.dropIndex(name);
+    }
+  }
+
   await Promise.all([
-    User.deleteMany({}), Settings.deleteMany({}), TimeSlot.deleteMany({}),
+    User.deleteMany({}), University.deleteMany({}), Settings.deleteMany({}), TimeSlot.deleteMany({}),
     Room.deleteMany({}), Faculty.deleteMany({}), Subject.deleteMany({}),
     Section.deleteMany({}), Assignment.deleteMany({}), Timetable.deleteMany({}),
     Semester.deleteMany({}),
   ]);
 
+  const university = await University.create({ name: "Institute of Technology", code: "IOT", active: true });
   await User.create({
-    name: "Timetable Administrator",
+    name: "Platform Administrator",
+    email: (process.env.SEED_PLATFORM_ADMIN_EMAIL ?? "platform@campus-grid.local").toLowerCase(),
+    passwordHash: await bcrypt.hash(process.env.SEED_PLATFORM_ADMIN_PASSWORD ?? "PlatformChangeMe123!", 12),
+    role: "PLATFORM_ADMIN",
+  });
+  await User.create({
+    name: "University A Administrator",
     email: (process.env.SEED_ADMIN_EMAIL ?? "admin@school.edu").toLowerCase(),
     passwordHash: await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!", 12),
-    role: "ADMIN",
+    role: "UNIVERSITY_ADMIN",
+    universityId: university._id,
   });
 
   /* ── Rules ──────────────────────────────────────────────────────────────
@@ -238,6 +265,18 @@ async function main() {
   ];
 
   await Assignment.insertMany(load);
+  // Keep the development seed compatible with tenant-aware queries while
+  // allowing the fixture declarations above to stay readable.
+  await Promise.all([
+    Settings.updateMany({}, { $set: { universityId: university._id } }),
+    Semester.updateMany({}, { $set: { universityId: university._id } }),
+    TimeSlot.updateMany({}, { $set: { universityId: university._id } }),
+    Room.updateMany({}, { $set: { universityId: university._id } }),
+    Faculty.updateMany({}, { $set: { universityId: university._id } }),
+    Subject.updateMany({}, { $set: { universityId: university._id } }),
+    Section.updateMany({}, { $set: { universityId: university._id } }),
+    Assignment.updateMany({}, { $set: { universityId: university._id } }),
+  ]);
 
   const active = load.filter((a) => a.active !== false);
   const totalSessions = active.reduce((n, a) => n + a.requiredSessions, 0);

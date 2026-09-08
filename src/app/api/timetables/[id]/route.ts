@@ -1,7 +1,7 @@
 import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
 import Semester from "@/models/Semester";
-import { requireAdmin } from "@/lib/auth";
+import { requireUniversityAdmin } from "@/lib/auth";
 import { revalidateTimetable, buildTeachingDays } from "@/lib/scheduler";
 import { ok, fail, handleError } from "@/lib/api";
 
@@ -9,11 +9,11 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
 
-    const doc = await Timetable.findById(id)
+    const doc = await Timetable.findOne({ _id: id, universityId: session.universityId })
       .populate("entries.section", "number program strength")
       .populate("entries.subject", "code name")
       .populate("entries.faculty", "name facultyId")
@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     // teaching days to render weeks and to know which dates are legal targets.
     let teachingDays: unknown[] = [];
     if ((doc as any).semester) {
-      const sem = await Semester.findById((doc as any).semester).lean();
+      const sem = await Semester.findOne({ _id: (doc as any).semester, universityId: session.universityId }).lean();
       if (sem) {
         teachingDays = buildTeachingDays({
           startDate: sem.startDate,
@@ -57,12 +57,12 @@ export async function GET(_req: Request, { params }: Ctx) {
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
     const { status, name } = await req.json();
 
-    const doc = await Timetable.findById(id);
+    const doc = await Timetable.findOne({ _id: id, universityId: session.universityId });
     if (!doc) return fail("That timetable no longer exists.", 404);
 
     if (status === "PUBLISHED") {
@@ -92,7 +92,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }
 
       // Publishing is exclusive: one live timetable at a time.
-      await Timetable.updateMany({ status: "PUBLISHED", _id: { $ne: doc._id } }, { status: "ARCHIVED" });
+      await Timetable.updateMany(
+        { universityId: session.universityId, status: "PUBLISHED", _id: { $ne: doc._id } },
+        { status: "ARCHIVED" }
+      );
       doc.status = "PUBLISHED";
       if (name) doc.name = name;
       await doc.save();
@@ -111,10 +114,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 export async function DELETE(_req: Request, { params }: Ctx) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const { id } = await params;
-    await Timetable.findByIdAndDelete(id);
+    await Timetable.findOneAndDelete({ _id: id, universityId: session.universityId });
     return ok({ id });
   } catch (e) {
     return handleError(e);

@@ -2,16 +2,16 @@ import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
 import Settings from "@/models/Settings";
 import Semester from "@/models/Semester";
-import { requireAdmin } from "@/lib/auth";
+import { requireUniversityAdmin } from "@/lib/auth";
 import { generateSchema } from "@/lib/validators";
 import { generateTimetable } from "@/lib/scheduler";
 import { ok, handleError, parseBody } from "@/lib/api";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
-    const list = await Timetable.find()
+    const list = await Timetable.find({ universityId: session.universityId })
       .select("name academicYear term status stats validation semester createdAt updatedAt")
       .sort({ updatedAt: -1 })
       .lean();
@@ -30,17 +30,17 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    const session = await requireUniversityAdmin();
     await connectAndRegister();
     const body = await parseBody(req, generateSchema);
 
-    const settings = await Settings.findOne().lean();
+    const settings = await Settings.findOne({ universityId: session.universityId }).lean();
 
     // An empty sheet is a valid starting point — the admin fills it on the canvas.
     if (body.empty) {
       const semester = body.semester
-        ? await Semester.findById(body.semester).lean()
-        : await Semester.findOne({ active: true }).sort({ updatedAt: -1 }).lean();
+        ? await Semester.findOne({ _id: body.semester, universityId: session.universityId }).lean()
+        : await Semester.findOne({ universityId: session.universityId, active: true }).sort({ updatedAt: -1 }).lean();
       const blank = await Timetable.create({
         name: body.name,
         semester: semester?._id,
@@ -51,6 +51,7 @@ export async function POST(req: Request) {
         sessions: [],
         stats: { requested: 0, scheduled: 0, patternPlaced: 0, generatedAt: new Date(), feasible: false },
         validation: { publishable: false },
+        universityId: session.universityId ?? undefined,
       });
       return ok({ id: String(blank._id), stats: blank.stats }, 201);
     }
@@ -59,10 +60,12 @@ export async function POST(req: Request) {
       sections: body.sections,
       semesterId: body.semester ?? undefined,
       seed: body.seed ?? Date.now() % 100000,
+      universityId: session.universityId ?? undefined,
     });
 
     const doc = await Timetable.create({
       name: body.name,
+      universityId: session.universityId ?? undefined,
       semester: out.universe.semester?._id,
       academicYear: out.universe.semester?.academicYear ?? settings?.academicYear ?? "2025-26",
       term: out.universe.semester?.term ?? settings?.term ?? "Odd",
