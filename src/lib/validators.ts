@@ -27,19 +27,17 @@ const boolish = z.union([z.boolean(), z.string(), z.number(), z.null(), z.undefi
   });
 
 /** An integer that may arrive as a blank spreadsheet cell. */
-function intOr(fallback: number, min: number, max: number): z.ZodType<number, z.ZodTypeDef, unknown> {
-  return z.preprocess(
-    (v) => (isEmpty(v) ? fallback : typeof v === "string" ? Number(v) : v),
-    z.number().int().min(min).max(max)
-  );
+function intOr(fallback: number, min: number, max: number) {
+  return z.union([z.literal(""), z.null(), z.undefined(), z.coerce.number()])
+    .transform((v) => (isEmpty(v) ? fallback : Number(v)))
+    .pipe(z.number().int().min(min).max(max));
 }
 
 /** A possibly-fractional number that may arrive as a blank spreadsheet cell. */
-function numOr(fallback: number, min: number, max: number): z.ZodType<number, z.ZodTypeDef, unknown> {
-  return z.preprocess(
-    (v) => (isEmpty(v) ? fallback : typeof v === "string" ? Number(v) : v),
-    z.number().min(min).max(max)
-  );
+function numOr(fallback: number, min: number, max: number) {
+  return z.union([z.literal(""), z.null(), z.undefined(), z.coerce.number()])
+    .transform((v) => (isEmpty(v) ? fallback : Number(v)))
+    .pipe(z.number().min(min).max(max));
 }
 
 /**
@@ -64,10 +62,8 @@ const idList = z.union([z.array(objectId), z.string(), z.null(), z.undefined()])
 
 /** An optional positive integer hint, where blank means "not set". */
 const optionalInt = (min: number, max: number) =>
-  z.preprocess(
-    (v) => (isEmpty(v) ? null : typeof v === "string" ? Number(v) : v),
-    z.union([z.number().int().min(min).max(max), z.null()])
-  );
+  z.union([z.coerce.number().int().min(min).max(max), z.literal(""), z.null(), z.undefined()])
+    .transform((v) => (isEmpty(v) ? null : Number(v)));
 
 export const ROOM_TYPE_ENUM = z.enum(["CLASSROOM", "LECTURE", "LAB", "SEMINAR", "AUDITORIUM"]);
 export const SESSION_KIND_ENUM = z.enum(["LECTURE", "LAB", "TUTORIAL"]);
@@ -245,13 +241,6 @@ export const extraSessionSchema = z.object({
   room: objectId,
   kind: SESSION_KIND_ENUM.default("LECTURE"),
   reason: z.string().min(1, "Say why this extra class is being added"),
-});
-
-export const regularSessionSchema = z.object({
-  date: isoDate,
-  slotOrder: z.coerce.number().int().min(0),
-  assignment: objectId,
-  room: objectId,
 });
 
 export const importCommitSchema = z.object({

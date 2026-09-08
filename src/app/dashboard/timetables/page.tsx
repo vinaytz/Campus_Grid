@@ -30,7 +30,6 @@ export default function TimetablesPage() {
   const [name, setName] = useState("");
   const [semester, setSemester] = useState("");
   const [busy, setBusy] = useState(false);
-  const [deleting, setDeleting] = useState<Row | null>(null);
 
   async function generate() {
     setBusy(true);
@@ -65,9 +64,9 @@ export default function TimetablesPage() {
   }
 
   async function remove(id: string) {
+    if (!confirm("Delete this timetable?")) return;
     await api(`/api/timetables/${id}`, { method: "DELETE" });
     push("Timetable deleted.");
-    setDeleting(null);
     await reload();
   }
 
@@ -156,7 +155,7 @@ export default function TimetablesPage() {
                         <Button size="xs" variant="secondary">Review</Button>
                       </Link>
                       <Button size="xs" variant="ghost" className="hover:text-claret"
-                        onClick={() => setDeleting(t)} aria-label="Delete">
+                        onClick={() => remove(t._id)} aria-label="Delete">
                         <Trash2 className="size-3.5" />
                       </Button>
                     </div>
@@ -224,13 +223,6 @@ export default function TimetablesPage() {
               Build the weekly pattern by hand, using Fill remaining whenever you want help.
             </span>
           </button>
-        </div>
-      </Modal>
-      <Modal open={!!deleting} onClose={() => setDeleting(null)} title="Delete timetable?"
-        description="This cannot be undone. Published timetables should be archived instead.">
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="primary" onClick={() => deleting && remove(deleting._id)}>Delete timetable</Button>
         </div>
       </Modal>
     </>

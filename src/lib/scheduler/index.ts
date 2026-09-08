@@ -23,7 +23,7 @@ export { expandToSemester, distributedTrimIndices } from "./expand";
 export { auditTimetable } from "./audit";
 export { scoreTimetable } from "./score";
 export { roomSatisfies, eligibleRoomsFor, describeRequirement } from "./rooms";
-export { validateMove, validatePattern, roomOptionsForMove } from "./moves";
+export { validateMove, roomOptionsForMove } from "./moves";
 export { minutesOf, slotsInWindow, spanOf, spanIsContiguous } from "./time";
 
 function err(message: string, status = 400) {

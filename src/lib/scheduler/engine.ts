@@ -220,8 +220,6 @@ export function solve(input: SolverInput): SolverResult {
 
       const facDay = ledger.facultyDayLoad.get(`${fac.id}:${day}`) ?? 0;
       if (facDay + s.duration > fac.maxHoursPerDay) continue;
-      const facWeek = ledger.facultyWeekLoad.get(fac.id) ?? 0;
-      if (facWeek + s.duration > fac.maxHoursPerWeek) continue;
       const secDay = ledger.sectionDayLoad.get(`${section.id}:${day}`) ?? 0;
       if (secDay + s.duration > input.rules.maxHoursPerDayPerSection) continue;
 

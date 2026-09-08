@@ -78,7 +78,7 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow="Scheduling"
         title="Rules"
-        description="Hard limits the generator must never break, and soft preferences it uses to choose a better timetable."
+        description="Hard limits the generator must never break, and the relative weight of each thing it merely prefers."
         action={<Button variant="primary" size="sm" onClick={save} loading={saving}>Save rules</Button>}
       />
 
@@ -180,20 +180,20 @@ export default function SettingsPage() {
         </section>
 
         <section className="rounded-md border border-rule bg-sheet p-4 shadow-hair lg:col-span-2">
-          <p className="label mb-1">Soft preference weights</p>
-          <p className="mb-4 text-[0.8125rem] leading-relaxed text-muted">
-            These weights control how strongly the generator prefers each soft objective relative to the others.
-            Higher value means greater priority; 0 disables that preference. Soft penalties never make a timetable invalid.
+          <p className="label mb-1">Optimisation weights</p>
+          <p className="mb-4 text-[0.8125rem] text-muted">
+            How much each soft objective counts against the others. 1 is normal; 0 switches it off.
           </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {WEIGHT_LABELS.map((item) => (
-              <Input key={item.key} label={item.label} hint={item.hint} type="number" min={0} max={5} step={0.1}
-                value={weights[item.key] ?? 1}
-                onChange={(e) => setWeight(item.key, Number(e.target.value))} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {WEIGHT_LABELS.map((w) => (
+              <Input
+                key={w.key} label={w.label} type="number" hint={w.hint}
+                value={weights[w.key] ?? 1}
+                onChange={(e) => setWeight(w.key, Number(e.target.value))}
+              />
             ))}
           </div>
         </section>
-
       </div>
     </>
   );

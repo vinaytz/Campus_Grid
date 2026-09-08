@@ -128,35 +128,6 @@ export function validateMove(req: MoveRequest, ctx: MoveContext): MoveVerdict {
     reasons.push(`${fac.name} would teach ${facultyPeriods.size + req.duration} periods that day (cap ${fac.maxHoursPerDay}).`);
   }
 
-  const facultyClassOrders = ctx.slots.filter((s) => s.kind === "CLASS").map((s) => s.order);
-  const facultyBusy = new Set<number>(facultyPeriods);
-  for (const order of orders) facultyBusy.add(order);
-  let run = 0;
-  let longest = 0;
-  for (const order of facultyClassOrders) {
-    run = facultyBusy.has(order) ? run + 1 : 0;
-    longest = Math.max(longest, run);
-  }
-  if (longest > ctx.rules.maxConsecutiveHoursPerFaculty) {
-    reasons.push(
-      `${fac.name} would teach ${longest} consecutive periods (cap ${ctx.rules.maxConsecutiveHoursPerFaculty}).`
-    );
-  }
-
-  const teachingWeek = day?.week;
-  if (teachingWeek !== undefined) {
-    const facultyWeekPeriods = ctx.sessions
-      .filter((s) => s.id !== req.sessionId)
-      .filter((s) => ctx.teachingDays.find((d) => d.date === s.date)?.week === teachingWeek)
-      .filter((s) => s.facultyId === req.facultyId)
-      .reduce((total, s) => total + s.duration, 0);
-    if (facultyWeekPeriods + req.duration > fac.maxHoursPerWeek) {
-      reasons.push(
-        `${fac.name} would teach ${facultyWeekPeriods + req.duration} periods in teaching week ${teachingWeek} (cap ${fac.maxHoursPerWeek}).`
-      );
-    }
-  }
-
   // ── Same assignment twice in one day ──────────────────────────────────
   if (req.type === "REGULAR" && req.assignmentId) {
     const already = others.filter(

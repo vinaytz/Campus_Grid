@@ -1,9 +1,8 @@
 import { connectAndRegister } from "@/lib/db";
 import Timetable from "@/models/Timetable";
-import Subject from "@/models/Subject";
 import { requireAdmin } from "@/lib/auth";
-import { moveSessionSchema, extraSessionSchema, regularSessionSchema } from "@/lib/validators";
-import { loadUniverse, validateMove, weekdayOf, roomSatisfies, type DatedSession } from "@/lib/scheduler";
+import { moveSessionSchema, extraSessionSchema } from "@/lib/validators";
+import { loadUniverse, validateMove, weekdayOf, type DatedSession } from "@/lib/scheduler";
 import { ok, fail, handleError, parseBody } from "@/lib/api";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -52,6 +51,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (!session) return fail("That session is no longer on this timetable.", 404);
 
     const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
+
     const verdict = validateMove(
       {
         sessionId: body.sessionId,
@@ -106,73 +106,22 @@ export async function POST(req: Request, { params }: Ctx) {
     await requireAdmin();
     await connectAndRegister();
     const { id } = await params;
-    const raw = await req.json();
-    const body = raw?.type === "REGULAR"
-      ? await regularSessionSchema.parseAsync(raw)
-      : await extraSessionSchema.parseAsync(raw);
+    const body = await parseBody(req, extraSessionSchema);
 
     const doc = await Timetable.findById(id);
     if (!doc) return fail("That timetable no longer exists.", 404);
-    if (doc.status === "PUBLISHED") {
-      return fail("This timetable is published. Move it back to draft before editing.", 409);
-    }
 
     const u = await loadUniverse({ semesterId: doc.semester ? String(doc.semester) : undefined });
-    if ("assignment" in body) {
-      const assignment = u.assignments.find((candidate) => candidate.id === body.assignment);
-      if (!assignment) return fail("That teaching assignment no longer exists.", 400);
-      const section = u.sections.find((candidate) => candidate.id === assignment.sectionId);
-      const room = u.rooms.find((candidate) => candidate.id === body.room);
-      if (!section || !room) return fail("The assignment or selected room no longer exists.", 400);
-      const verdict = validateMove(
-        {
-          date: body.date, slotOrder: body.slotOrder, duration: assignment.duration,
-          sectionId: assignment.sectionId, facultyId: assignment.facultyId,
-          roomId: body.room, kind: assignment.kind, type: "REGULAR", assignmentId: assignment.id,
-        },
-        {
-          sessions: toDated(doc.sessions as any[]), assignments: u.assignments,
-          teachingDays: u.teachingDays, slots: u.slots, rooms: u.rooms,
-          sections: u.sections, faculty: u.faculty, rules: u.rules,
-        }
-      );
-      if (!verdict.ok) return fail(verdict.reasons[0], 409, { reasons: verdict.reasons });
-      doc.sessions.push({
-        date: body.date, day: weekdayOf(body.date), slotOrder: body.slotOrder,
-        duration: assignment.duration, section: assignment.sectionId, subject: assignment.subjectId,
-        faculty: assignment.facultyId, room: body.room, kind: assignment.kind,
-        type: "REGULAR", assignment: assignment.id, locked: true,
-      } as any);
-      doc.validation.publishable = false;
-      doc.stats.scheduled = (doc.sessions as any[]).filter((s) => s.type === "REGULAR").length;
-      await doc.save();
-      return ok({ added: 1, type: "REGULAR" }, 201);
-    }
-
-    const subject = await Subject.findById(body.subject).lean();
-    const section = u.sections.find((candidate) => candidate.id === body.section);
-    const faculty = u.faculty.find((candidate) => candidate.id === body.faculty);
-    const room = u.rooms.find((candidate) => candidate.id === body.room);
-    if (!subject || !section || !faculty || !room) {
-      return fail("The extra class references a missing subject, section, faculty member or room.", 400);
-    }
-    const roomFit = roomSatisfies(
-      room,
-      { roomSelection: "AUTO", allowedRooms: [], requiredCapabilities: [] },
-      body.kind ?? "LECTURE",
-      section.strength
-    );
-    if (!roomFit.ok) return fail(`The selected room cannot host this extra class: ${roomFit.reason}`, 400);
 
     const verdict = validateMove(
       {
         date: body.date,
         slotOrder: body.slotOrder,
-        duration: Number(body.duration),
+        duration: body.duration,
         sectionId: body.section,
         facultyId: body.faculty,
         roomId: body.room,
-        kind: body.kind ?? "LECTURE",
+        kind: body.kind,
         type: "EXTRA",
       },
       {
@@ -193,12 +142,12 @@ export async function POST(req: Request, { params }: Ctx) {
       date: body.date,
       day: weekdayOf(body.date),
       slotOrder: body.slotOrder,
-      duration: Number(body.duration),
+      duration: body.duration,
       section: body.section,
       subject: body.subject,
       faculty: body.faculty,
       room: body.room,
-      kind: body.kind ?? "LECTURE",
+      kind: body.kind,
       type: "EXTRA",
       locked: true,
       reason: body.reason,
@@ -220,9 +169,6 @@ export async function DELETE(req: Request, { params }: Ctx) {
 
     const doc = await Timetable.findById(id);
     if (!doc) return fail("That timetable no longer exists.", 404);
-    if (doc.status === "PUBLISHED") {
-      return fail("This timetable is published. Move it back to draft before editing.", 409);
-    }
 
     const session = doc.sessions.id(sessionId);
     if (!session) return fail("That session is no longer on this timetable.", 404);

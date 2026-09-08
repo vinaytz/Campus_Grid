@@ -25,12 +25,7 @@ export function slotsInWindow(slots: SlotRef[], start: string, end: string): num
       const a = minutesOf(s.start);
       const b = minutesOf(s.end);
       if (Number.isNaN(a) || Number.isNaN(b)) return false;
-      if (a === to) return true;
-      if (!(a < to && b > from)) return false;
-      // Do not count a tiny leading sliver as the preferred free-period window;
-      // a period that runs beyond the window's end still meaningfully occupies it.
-      if (a < from && b > from && b - from < (b - a) / 4) return false;
-      return true;
+      return a < to && b > from;
     })
     .map((s) => s.order);
 }

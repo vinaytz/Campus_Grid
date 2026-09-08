@@ -1,12 +1,14 @@
 "use client";
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Globe, ShieldCheck, CalendarRange } from "lucide-react";
+import { ArrowLeft, Globe, ShieldCheck, CalendarRange, RefreshCw } from "lucide-react";
 import { api, useResource } from "@/hooks/useApi";
+import { Studio } from "@/components/studio/Studio";
 import { SemesterView, type Session, type TeachingDay } from "@/components/timetable/SemesterView";
 import { GenerationReport, type Report } from "@/components/timetable/GenerationReport";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Segmented } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import type { LiteEntry, LiteRoom, LiteSlot, Rules } from "@/lib/scheduler/validate";
 
@@ -18,11 +20,15 @@ type Detail = Report & {
   semesterDoc?: { name: string; startDate: string; endDate: string };
 };
 
+type Tab = "semester" | "pattern";
+
 export default function TimetableStudioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { push } = useToast();
+  const [tab, setTab] = useState<Tab>("semester");
   const [publishing, setPublishing] = useState(false);
   const [validating, setValidating] = useState(false);
+  const [expanding, setExpanding] = useState(false);
 
   const { data, loading, reload } = useResource<Detail>(`/api/timetables/${id}`);
   const { data: slots } = useResource<LiteSlot[]>("/api/admin/slots");
@@ -53,6 +59,31 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
       push((e as Error).message, "error");
     } finally {
       setValidating(false);
+    }
+  }
+
+  /** Re-expands the weekly pattern across the calendar after Studio edits. */
+  async function applyPattern() {
+    if (!confirm(
+      "Re-expand the weekly pattern across the semester?\n\n" +
+      "Dated sessions will be rebuilt from the current pattern and reconciled to each " +
+      "assignment's exact required count. Pinned sessions and extra classes are kept."
+    )) return;
+    setExpanding(true);
+    try {
+      const res = await api<{ scheduled: number; requested: number; trimmed: number; added: number }>(
+        `/api/timetables/${id}/layout`, { method: "POST" }
+      );
+      push(
+        `Expanded to ${res.scheduled} of ${res.requested} required sessions` +
+        (res.trimmed ? `, trimmed ${res.trimmed}` : "") +
+        (res.added ? `, topped up ${res.added}` : "") + "."
+      );
+      await reload();
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setExpanding(false);
     }
   }
 
@@ -141,7 +172,23 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
 
       <GenerationReport report={data} />
 
-      {
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <Segmented<Tab>
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "semester", label: "Semester" },
+            { value: "pattern", label: "Weekly pattern" },
+          ]}
+        />
+        {tab === "pattern" && !published && (
+          <Button variant="secondary" size="sm" onClick={applyPattern} loading={expanding}>
+            <RefreshCw className="size-3.5" /> Apply pattern to semester
+          </Button>
+        )}
+      </div>
+
+      {tab === "semester" ? (
         (data.teachingDays?.length ?? 0) === 0 ? (
           <div className="rounded-md border border-dashed border-rule-strong bg-sheet px-6 py-12 text-center">
             <CalendarRange className="mx-auto mb-3 size-5 text-muted" />
@@ -161,12 +208,34 @@ export default function TimetableStudioPage({ params }: { params: Promise<{ id: 
             slots={slots as any}
             teachingDays={data.teachingDays}
             rooms={rooms as any}
-            assignments={assignments as any}
             readOnly={published}
             onChanged={reload}
           />
         )
-      }
+      ) : (
+        <>
+          <p className="mb-3 max-w-3xl text-[0.8125rem] leading-relaxed text-muted">
+            This is the recurring weekly template, not the deliverable. Rearranging it
+            changes the shape of a typical week; use <em>Apply pattern to semester</em> to
+            rebuild the dated sessions from it and reconcile them back to each
+            assignment&apos;s exact required total.
+          </p>
+          <Studio
+            timetableId={id}
+            initialEntries={data.entries}
+            assignments={assignments}
+            slots={slots}
+            rooms={rooms}
+            rules={rules}
+            teachingWeeks={
+              data.teachingDays?.length
+                ? new Set(data.teachingDays.map((d) => d.week)).size
+                : undefined
+            }
+            readOnly={published}
+          />
+        </>
+      )}
     </>
   );
 }

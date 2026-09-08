@@ -63,7 +63,6 @@ class DatedLedger {
   private room = new Map<string, Set<string>>();
   private sectionDay = new Map<string, number>();
   private facultyDay = new Map<string, number>();
-  private facultyWeek = new Map<string, number>();
   private assignmentDay = new Map<string, number>();
   private subjectDates = new Map<string, string[]>();
 
@@ -73,7 +72,7 @@ class DatedLedger {
     return s;
   }
 
-  add(s: DatedSession, subjectSectionKey?: string, week?: number) {
+  add(s: DatedSession, subjectSectionKey?: string) {
     for (const o of spanOf(s.slotOrder, s.duration)) {
       this.bucket(this.section, s.sectionId).add(key(s.date, o));
       this.bucket(this.faculty, s.facultyId).add(key(s.date, o));
@@ -81,9 +80,6 @@ class DatedLedger {
     }
     this.sectionDay.set(`${s.sectionId}:${s.date}`, (this.sectionDay.get(`${s.sectionId}:${s.date}`) ?? 0) + s.duration);
     this.facultyDay.set(`${s.facultyId}:${s.date}`, (this.facultyDay.get(`${s.facultyId}:${s.date}`) ?? 0) + s.duration);
-    if (week !== undefined) {
-      this.facultyWeek.set(`${s.facultyId}:${week}`, (this.facultyWeek.get(`${s.facultyId}:${week}`) ?? 0) + s.duration);
-    }
     if (s.assignmentId) {
       const k = `${s.assignmentId}:${s.date}`;
       this.assignmentDay.set(k, (this.assignmentDay.get(k) ?? 0) + 1);
@@ -102,7 +98,6 @@ class DatedLedger {
 
   sectionLoad(id: string, date: string) { return this.sectionDay.get(`${id}:${date}`) ?? 0; }
   facultyLoad(id: string, date: string) { return this.facultyDay.get(`${id}:${date}`) ?? 0; }
-  facultyWeekLoad(id: string, week: number) { return this.facultyWeek.get(`${id}:${week}`) ?? 0; }
   assignmentCount(id: string, date: string) { return this.assignmentDay.get(`${id}:${date}`) ?? 0; }
 
   /** Longest run of consecutive busy periods the faculty would have that day. */
@@ -186,7 +181,6 @@ export function expandToSemester(input: ExpandInput): ExpandResult {
   const windows = buildWindows(ordered, rules.allowSessionsAcrossBreak);
   const afternoonOrders = slotsInWindow(ordered, rules.afternoonWindowStart, rules.afternoonWindowEnd);
   const totalDays = teachingDays.length;
-  const weekByDate = new Map(teachingDays.map((d) => [d.date, d.week]));
 
   const label = (a: AssignmentRef) => `${a.subjectCode} · §${a.sectionNumber}`;
 
@@ -267,8 +261,8 @@ export function expandToSemester(input: ExpandInput): ExpandResult {
 
   // ── 3. Seed the dated ledger with everything already fixed ───────────────
   const ledger = new DatedLedger();
-  for (const s of kept) ledger.add(s, undefined, weekByDate.get(s.date));
-  for (const s of input.fixedSessions ?? []) ledger.add(s, undefined, weekByDate.get(s.date));
+  for (const s of kept) ledger.add(s);
+  for (const s of input.fixedSessions ?? []) ledger.add(s);
 
   // ── 4. Close deficits with hard-constraint-checked remainder placements ──
   let added = 0;
@@ -317,7 +311,7 @@ export function expandToSemester(input: ExpandInput): ExpandResult {
         locked: false,
       };
       kept.push(s);
-      ledger.add(s, undefined, best.week);
+      ledger.add(s);
       placedHere++;
       added++;
     }
@@ -380,14 +374,14 @@ function bestRemainder(ctx: {
   rules: SchedulerRules;
   ledger: DatedLedger;
   totalDays: number;
-}): { date: string; weekday: number; week: number; slotOrder: number; roomId: string } | null {
+}): { date: string; weekday: number; slotOrder: number; roomId: string } | null {
   const {
     a, section, fac, eligible, blocked, subjectKey, teachingDays, windows,
     classOrders, afternoonOrders, rules, ledger, totalDays,
   } = ctx;
   const w = rules.weights;
 
-  let best: { date: string; weekday: number; week: number; slotOrder: number; roomId: string } | null = null;
+  let best: { date: string; weekday: number; slotOrder: number; roomId: string } | null = null;
   let bestScore = Infinity;
 
   for (let di = 0; di < teachingDays.length; di++) {
@@ -400,7 +394,6 @@ function bestRemainder(ctx: {
     if (secLoad + a.duration > rules.maxHoursPerDayPerSection) continue;
     const facLoad = ledger.facultyLoad(fac.id, day.date);
     if (facLoad + a.duration > fac.maxHoursPerDay) continue;
-    if (ledger.facultyWeekLoad(fac.id, day.week) + a.duration > fac.maxHoursPerWeek) continue;
 
     for (const win of windows.get(a.duration) ?? []) {
       if (win.some((o) => blocked.has(`${day.patternWeekday}:${o}`))) continue;
@@ -442,7 +435,7 @@ function bestRemainder(ctx: {
         const roomScore = score + (room.capacity - section.strength) * 0.3 * w.roomFit;
         if (roomScore < bestScore) {
           bestScore = roomScore;
-          best = { date: day.date, weekday: day.weekday, week: day.week, slotOrder: win[0], roomId: room.id };
+          best = { date: day.date, weekday: day.weekday, slotOrder: win[0], roomId: room.id };
         }
       }
     }

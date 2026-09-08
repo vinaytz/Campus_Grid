@@ -79,19 +79,7 @@ export async function PUT(req: Request, { params }: Ctx) {
 
     if (!verdict.ok) return fail(verdict.reasons[0], 409, { reasons: verdict.reasons });
 
-    const assignmentsById = new Map(u.assignments.map((a) => [a.id, a]));
-    doc.entries = body.entries.map((entry) => {
-      const assignment = assignmentsById.get(entry.assignment);
-      if (!assignment) throw new Error("A layout entry references an unknown assignment.");
-      return {
-        ...entry,
-        section: assignment.sectionId,
-        subject: assignment.subjectId,
-        faculty: assignment.facultyId,
-        kind: assignment.kind,
-        duration: assignment.duration,
-      };
-    }) as any;
+    doc.entries = body.entries as any;
     doc.stats.patternPlaced = body.entries.length;
     doc.validation.publishable = false;
     await doc.save();

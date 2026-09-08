@@ -37,7 +37,7 @@ function stdev(values: number[]): number {
 }
 
 export function scoreTimetable(input: ScoreInput): ScoreReport {
-  const { sessions, assignments, teachingDays, slots, sections, faculty, rooms, rules } = input;
+  const { sessions, assignments, teachingDays, slots, sections, faculty, rules } = input;
   const w = rules.weights;
   const warnings: string[] = [];
 
@@ -76,8 +76,9 @@ export function scoreTimetable(input: ScoreInput): ScoreReport {
   let worstSection = { id: "", spread: 0 };
   for (const section of sections) {
     const loads = dates.map((d) => sectionDays.get(`${section.id}|${d}`)?.size ?? 0);
-    if (!loads.some((n) => n > 0)) continue;
-    const spread = stdev(loads);
+    const taught = loads.filter((n) => n > 0);
+    if (taught.length < 2) continue;
+    const spread = stdev(taught);
     sectionBalance += spread;
     if (spread > worstSection.spread) worstSection = { id: section.id, spread };
   }
@@ -93,8 +94,8 @@ export function scoreTimetable(input: ScoreInput): ScoreReport {
   let worstFaculty = { id: "", spread: 0 };
   const activeFaculty = new Set(regular.map((s) => s.facultyId));
   for (const id of activeFaculty) {
-    const loads = dates.map((d) => facultyDays.get(`${id}|${d}`)?.size ?? 0);
-    if (!loads.some((n) => n > 0)) continue;
+    const loads = dates.map((d) => facultyDays.get(`${id}|${d}`)?.size ?? 0).filter((n) => n > 0);
+    if (loads.length < 2) continue;
     const spread = stdev(loads);
     facultyBalance += spread;
     if (spread > worstFaculty.spread) worstFaculty = { id, spread };

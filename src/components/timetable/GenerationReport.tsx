@@ -96,18 +96,14 @@ export function GenerationReport({ report }: { report: Report }) {
           sub={s.requested ? `${pct}% of the requirement` : undefined}
         />
         <Figure
-          label="Correctness · hard violations" value={hard.length}
+          label="Hard violations" value={hard.length}
           tone={hard.length === 0 ? "moss" : "claret"}
         />
         <Figure
-          label="Quality · soft score" value={s.softScore ?? 0}
+          label="Soft score" value={s.softScore ?? 0}
           sub="lower is better"
         />
       </div>
-      <p className="border-t border-rule px-4 py-2 text-micro leading-relaxed text-muted">
-        Soft score measures timetable quality using workload balance, subject spacing, afternoon breaks,
-        gaps, consecutive classes and room suitability. Lower is better; a soft penalty does not make the timetable invalid.
-      </p>
 
       {/* Hard violations — the blocking list */}
       {hard.length > 0 && (

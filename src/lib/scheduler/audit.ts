@@ -46,8 +46,6 @@ export function auditTimetable(input: AuditInput): AuditReport {
   const assignmentById = new Map(assignments.map((a) => [a.id, a]));
   const slotByOrder = new Map(slots.map((s) => [s.order, s]));
   const teachingByDate = new Map(teachingDays.map((d) => [d.date, d]));
-  const facultyDayPeriods = new Map<string, number>();
-  const facultyWeekPeriods = new Map<string, number>();
 
   const push = (v: Violation) => (v.severity === "HARD" ? hard : soft).push(v);
   const at = (s: DatedSession) => {
@@ -180,17 +178,6 @@ export function auditTimetable(input: AuditInput): AuditReport {
 
     // Faculty availability, expressed against the weekday the date runs as.
     const fac = facultyById.get(s.facultyId);
-    facultyDayPeriods.set(
-      `${s.facultyId}:${s.date}`,
-      (facultyDayPeriods.get(`${s.facultyId}:${s.date}`) ?? 0) + s.duration
-    );
-    const teachingDay = teachingByDate.get(s.date);
-    if (teachingDay) {
-      facultyWeekPeriods.set(
-        `${s.facultyId}:${teachingDay.week}`,
-        (facultyWeekPeriods.get(`${s.facultyId}:${teachingDay.week}`) ?? 0) + s.duration
-      );
-    }
     const patternWeekday = teachingByDate.get(s.date)?.patternWeekday ?? s.day;
     if (fac?.unavailability?.length) {
       const blocked = new Set(fac.unavailability.map((u) => `${u.day}:${u.slotOrder}`));
@@ -203,7 +190,6 @@ export function auditTimetable(input: AuditInput): AuditReport {
           date: s.date, slotOrder: s.slotOrder,
         });
       }
-
     }
 
     if (s.type === "REGULAR" && s.assignmentId) {
@@ -212,28 +198,6 @@ export function auditTimetable(input: AuditInput): AuditReport {
       list.push(s);
       perDayAssignment.set(k, list);
     }
-  }
-
-  for (const [key, periods] of facultyDayPeriods) {
-    const [facultyId, date] = key.split(":");
-    const fac = facultyById.get(facultyId);
-    if (!fac || periods <= fac.maxHoursPerDay) continue;
-    push({
-      rule: "FACULTY_DAY_LOAD",
-      severity: "HARD",
-      message: `${fac.name} has ${periods} periods on ${date}; the cap is ${fac.maxHoursPerDay}.`,
-      date,
-    });
-  }
-  for (const [key, periods] of facultyWeekPeriods) {
-    const [facultyId, week] = key.split(":");
-    const fac = facultyById.get(facultyId);
-    if (!fac || periods <= fac.maxHoursPerWeek) continue;
-    push({
-      rule: "FACULTY_WEEK_LOAD",
-      severity: "HARD",
-      message: `${fac.name} has ${periods} periods in teaching week ${week}; the cap is ${fac.maxHoursPerWeek}.`,
-    });
   }
 
   /* ── 3. Same assignment more than once a day ───────────────────────────── */

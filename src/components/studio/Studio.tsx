@@ -12,7 +12,6 @@ import {
 import { api } from "@/hooks/useApi";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
 import { Select, Segmented } from "@/components/ui/Field";
 import { StudioCanvas } from "./StudioCanvas";
 import { SessionTray, type PendingSession } from "./SessionTray";
@@ -46,7 +45,6 @@ export function Studio({
   const [past, setPast] = useState<LiteEntry[][]>([]);
   const [future, setFuture] = useState<LiteEntry[][]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
   const [lens, setLens] = useState<Lens>("section");
   const [focus, setFocus] = useState<string>("");
   const [save, setSave] = useState<SaveState>("idle");
@@ -353,14 +351,12 @@ export function Studio({
   function clearUnpinned() {
     const removable = entries.filter((e) => !e.locked).length;
     if (removable === 0) { push("Nothing to clear — every session is pinned."); return; }
-    setConfirmClear(true);
-  }
-
-  function confirmClearUnpinned() {
-    const removable = entries.filter((e) => !e.locked).length;
+    if (!confirm(
+      `Take ${removable} unpinned session${removable === 1 ? "" : "s"} off the canvas?\n\n` +
+      `${entries.length - removable} pinned session(s) will stay. You can undo this with Cmd+Z.`
+    )) return;
     commit(entries.filter((e) => e.locked));
     setSelectedId(null);
-    setConfirmClear(false);
   }
 
   const mutate = (fn: (e: LiteEntry) => LiteEntry) => {
@@ -400,14 +396,6 @@ export function Studio({
               {lensOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </Select>
           </div>
-          <Modal open={confirmClear} onClose={() => setConfirmClear(false)}
-            title="Clear unpinned sessions?"
-            description="Pinned sessions stay in place. The removed sessions can be restored with Undo.">
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button>
-              <Button variant="primary" onClick={confirmClearUnpinned}>Clear sessions</Button>
-            </div>
-          </Modal>
 
           <div className="h-5 w-px bg-rule-strong" />
 

@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { api, useResource } from "@/hooks/useApi";
 import { Button } from "@/components/ui/Button";
-import { Input, Select, Toggle, TagInput, MultiSelect, UnavailabilityInput } from "@/components/ui/Field";
+import { Input, Select, Toggle, TagInput, MultiSelect } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Table, TH, TD, EmptyState } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 export type FieldDef = {
   name: string;
   label: string;
-  type?: "text" | "number" | "time" | "date" | "select" | "email" | "toggle" | "tags" | "multiselect" | "unavailability";
+  type?: "text" | "number" | "time" | "date" | "select" | "email" | "toggle" | "tags" | "multiselect";
   options?: { value: string; label: string }[];
   /** tags only: one-click suggestions. The field still accepts anything typed. */
   suggestions?: readonly string[];
@@ -50,7 +50,6 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   const { push } = useToast();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Partial<T> | null>(null);
-  const [deleting, setDeleting] = useState<T | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -124,10 +123,10 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
   }
 
   async function remove(row: T) {
+    if (!confirm(`Delete this ${config.singular.toLowerCase()}? This can't be undone.`)) return;
     try {
       await api(`/api/admin/${config.resource}/${row._id}`, { method: "DELETE" });
       push(`${config.singular} deleted.`);
-      setDeleting(null);
       await reload();
     } catch (e) {
       push((e as Error).message, "error");
@@ -184,7 +183,7 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
                 <TD className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button size="xs" variant="ghost" onClick={() => openEdit(row)}>Edit</Button>
-                    <Button size="xs" variant="ghost" className="hover:text-claret" onClick={() => setDeleting(row)}>
+                    <Button size="xs" variant="ghost" className="hover:text-claret" onClick={() => remove(row)}>
                       Delete
                     </Button>
                   </div>
@@ -239,14 +238,6 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
                 </div>
               );
             }
-            if (f.type === "unavailability") {
-              return (
-                <UnavailabilityInput key={f.name} label={f.label}
-                  value={Array.isArray(value) ? value as { day: number; slotOrder: number }[] : []}
-                  onChange={set}
-                  slots={f.options ?? []} />
-              );
-            }
             if (f.type === "select") {
               return (
                 <div key={f.name} className={wrap}>
@@ -275,14 +266,6 @@ export function ResourceScreen<T extends { _id: string }>({ config }: { config: 
             {formError}
           </p>
         )}
-      </Modal>
-      <Modal open={!!deleting} onClose={() => setDeleting(null)}
-        title={`Delete ${config.singular.toLowerCase()}?`}
-        description="This cannot be undone. Records still used by assignments will be protected.">
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="primary" onClick={() => deleting && remove(deleting)}>Delete</Button>
-        </div>
       </Modal>
     </>
   );
