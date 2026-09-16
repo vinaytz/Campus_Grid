@@ -18,6 +18,7 @@ import Section from "../src/models/Section";
 import Assignment from "../src/models/Assignment";
 import Timetable from "../src/models/Timetable";
 import Semester from "../src/models/Semester";
+import { dropLegacyIndexes } from "../src/lib/db";
 
 async function main() {
   const uri = process.env.MONGODB_URI;
@@ -25,23 +26,9 @@ async function main() {
   await mongoose.connect(uri);
   console.log("→ connected");
 
-  const obsoleteIndexes: Record<string, string[]> = {
-    timeslots: ["order_1"],
-    rooms: ["block_1_code_1"],
-    faculties: ["facultyId_1"],
-    subjects: ["code_1"],
-    sections: ["number_1"],
-    assignments: ["section_1_subject_1_kind_1"],
-  };
   const db = mongoose.connection.db;
   if (!db) throw new Error("MongoDB connection did not expose a database.");
-  for (const [collectionName, names] of Object.entries(obsoleteIndexes)) {
-    const collection = db.collection(collectionName);
-    const indexes = await collection.listIndexes().toArray();
-    for (const name of names) {
-      if (indexes.some((index) => index.name === name)) await collection.dropIndex(name);
-    }
-  }
+  await dropLegacyIndexes(db);
 
   await Promise.all([
     User.deleteMany({}),

@@ -189,7 +189,7 @@ export function Studio({
           requiredRoomType: a.requiredRoomType,
           fixedRoomId: a.fixedRoom ? String(a.fixedRoom._id ?? a.fixedRoom) : undefined,
           allowedRoomIds: (a.allowedRooms ?? []).map((r: any) => String(r._id ?? r)),
-          requiredCapabilities: a.requiredCapabilities ?? [],
+          requiredCapabilities: [],
           remaining,
         } as PendingSession;
       })
@@ -237,7 +237,7 @@ export function Studio({
         requiredRoomType: a?.requiredRoomType,
         fixedRoomId: a?.fixedRoom ? String(a.fixedRoom._id ?? a.fixedRoom) : undefined,
         allowedRoomIds: (a?.allowedRooms ?? []).map((r: any) => String(r._id ?? r)),
-        requiredCapabilities: a?.requiredCapabilities ?? [],
+        requiredCapabilities: [],
       };
     }
     const p = drag.pending;

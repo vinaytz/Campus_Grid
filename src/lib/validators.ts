@@ -95,7 +95,6 @@ export const roomSchema = z.object({
 export const facultySchema = z.object({
   facultyId: z.string().min(1, "Faculty ID is required"),
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
   department: z.string().optional().default(""),
   designation: z.string().optional(),
   maxHoursPerWeek: intOr(18, 1, 60),
@@ -113,7 +112,6 @@ export const subjectSchema = z.object({
   department: z.string().min(1, "Department is required"),
   type: z.enum(["THEORY", "LAB", "TUTORIAL", "PROJECT"]).default("THEORY"),
   defaultDuration: intOr(1, 1, 3),
-  credits: numOr(3, 0, 12),
   active: boolish,
 });
 
@@ -141,7 +139,6 @@ export const assignmentSchema = z.object({
   allowedRooms: idList,
   requiredRoomType: z.union([ROOM_TYPE_ENUM, z.literal("")]).optional()
     .transform((v) => (v ? v : undefined)),
-  requiredCapabilities: tagList,
   active: boolish,
 })
   .refine((v) => v.roomSelection !== "FIXED" || !!v.fixedRoom, {

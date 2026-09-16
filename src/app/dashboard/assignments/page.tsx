@@ -1,7 +1,7 @@
 "use client";
 import { ResourceScreen } from "@/components/dashboard/ResourceScreen";
 import { Badge } from "@/components/ui/Badge";
-import { ROOM_TYPES, ROOM_CAPABILITIES } from "@/lib/constants";
+import { ROOM_TYPES } from "@/lib/constants";
 
 /**
  * The teaching-load screen. This is the most important domain object in the
@@ -66,7 +66,6 @@ export default function AssignmentsPage() {
               return (
                 <span className="font-mono text-micro text-muted">
                   {detail}
-                  {r.requiredCapabilities?.length ? ` · ${r.requiredCapabilities.join("+")}` : ""}
                 </span>
               );
             },
@@ -144,12 +143,6 @@ export default function AssignmentsPage() {
             name: "requiredRoomType", label: "Required room type", type: "select",
             placeholder: "Match the session kind",
             options: ROOM_TYPES.map((t) => ({ value: t, label: t.charAt(0) + t.slice(1).toLowerCase() })),
-          },
-          {
-            name: "requiredCapabilities", label: "Required capabilities", type: "tags",
-            suggestions: ROOM_CAPABILITIES, defaultValue: [],
-            hint: "the room must have all of these",
-            placeholder: "e.g. BYOD",
           },
           { name: "active", label: "Include when generating", type: "toggle", defaultValue: true, full: true },
         ],

@@ -10,7 +10,6 @@ export interface ISubject {
   type: "THEORY" | "LAB" | "TUTORIAL" | "PROJECT";
   /** Default periods per session; an assignment may override it. */
   defaultDuration: 1 | 2 | 3;
-  credits: number;
   active: boolean;
 }
 
@@ -26,7 +25,6 @@ const SubjectSchema = new Schema<ISubject>(
       default: "THEORY",
     },
     defaultDuration: { type: Number, enum: [1, 2, 3], default: 1 },
-    credits: { type: Number, default: 3, min: 0 },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }

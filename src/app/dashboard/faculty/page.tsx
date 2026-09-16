@@ -33,7 +33,6 @@ export default function FacultyPage() {
         fields: (lookups) => [
           { name: "facultyId", label: "Faculty ID", required: true, placeholder: "23314" },
           { name: "name", label: "Full name", required: true, placeholder: "Praveen Malik" },
-          { name: "email", label: "Email", type: "email", placeholder: "praveen@school.edu" },
           { name: "department", label: "Department", required: true, placeholder: "Electronics" },
           { name: "designation", label: "Designation", placeholder: "Assistant Professor" },
           { name: "maxHoursPerDay", label: "Max periods per day", type: "number", defaultValue: 5 },

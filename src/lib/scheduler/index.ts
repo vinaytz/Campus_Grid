@@ -118,7 +118,8 @@ export async function loadUniverse(opts: {
     fixedRoom: a.fixedRoom ? String(a.fixedRoom) : undefined,
     allowedRooms: (a.allowedRooms ?? []).map((r: any) => String(r)),
     requiredRoomType: a.requiredRoomType,
-    requiredCapabilities: a.requiredCapabilities ?? [],
+    // Capability requirements are no longer offered; ignore any stored on old records.
+    requiredCapabilities: [],
   }));
 
   return {

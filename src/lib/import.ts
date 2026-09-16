@@ -94,15 +94,14 @@ export const SPECS: Record<ImportResource, Spec> = {
     aliases: {
       facultyId: ["uid", "id", "employeeid", "staffid", "code"],
       name: ["fullname", "facultyname"],
-      email: ["mail", "emailaddress"],
       department: ["dept", "school"],
       designation: ["title", "role"],
       maxHoursPerWeek: ["weeklycap", "maxweek"],
       maxHoursPerDay: ["dailycap", "maxday"],
       active: ["enabled"],
     },
-    template: ["facultyId", "name", "email", "department", "designation", "maxHoursPerDay", "maxHoursPerWeek", "active"],
-    sample: [["23314", "Praveen Malik", "praveen@school.edu", "Electronics", "Assistant Professor", 5, 18, "yes"]],
+    template: ["facultyId", "name", "department", "designation", "maxHoursPerDay", "maxHoursPerWeek", "active"],
+    sample: [["23314", "Praveen Malik", "Electronics", "Assistant Professor", 5, 18, "yes"]],
     keyOf: (r) => ({ facultyId: r.facultyId }),
     describe: (r) => ({
       ID: r.facultyId, Name: r.name, Department: r.department || "—",
@@ -119,13 +118,12 @@ export const SPECS: Record<ImportResource, Spec> = {
       department: ["dept", "school"],
       type: ["subjecttype", "category"],
       defaultDuration: ["duration", "periods", "hours"],
-      credits: ["credit"],
       active: ["enabled"],
     },
-    template: ["code", "name", "department", "type", "defaultDuration", "credits", "active"],
+    template: ["code", "name", "department", "type", "defaultDuration", "active"],
     sample: [
-      ["ECE281", "Introduction to IoT", "Electronics", "THEORY", 1, 4, "yes"],
-      ["ECE282", "IoT Laboratory", "Electronics", "LAB", 3, 2, "yes"],
+      ["ECE281", "Introduction to IoT", "Electronics", "THEORY", 1, "yes"],
+      ["ECE282", "IoT Laboratory", "Electronics", "LAB", 3, "yes"],
     ],
     keyOf: (r) => ({ code: r.code }),
     describe: (r) => ({ Code: r.code, Name: r.name, Type: r.type, Periods: String(r.defaultDuration) }),
@@ -165,17 +163,16 @@ export const SPECS: Record<ImportResource, Spec> = {
       fixedRoom: ["room", "pinnedroom"],
       allowedRooms: ["rooms", "roomlist", "permittedrooms"],
       requiredRoomType: ["roomtype"],
-      requiredCapabilities: ["capabilities", "roomtags", "features"],
       active: ["enabled"],
     },
     template: [
       "section", "subject", "faculty", "kind", "duration", "requiredSessions",
       "targetWeeklyFrequency", "roomSelection", "fixedRoom", "allowedRooms",
-      "requiredRoomType", "requiredCapabilities", "active",
+      "requiredRoomType", "active",
     ],
     sample: [
-      ["2403", "ECE281", "23314", "LECTURE", 1, 40, 3, "AUTO", "", "", "", "", "yes"],
-      ["2403", "ECE282", "23314", "LAB", 3, 13, 1, "ALLOWED_ROOMS", "", "B-301;B-302", "LAB", "COMPUTER", "yes"],
+      ["2403", "ECE281", "23314", "LECTURE", 1, 40, 3, "AUTO", "", "", "", "yes"],
+      ["2403", "ECE282", "23314", "LAB", 3, 13, 1, "ALLOWED_ROOMS", "", "B-301;B-302", "LAB", "yes"],
     ],
     keyOf: (r) => ({ section: r.section, subject: r.subject, kind: r.kind }),
 
@@ -241,7 +238,6 @@ export const SPECS: Record<ImportResource, Spec> = {
           fixedRoom,
           allowedRooms,
           requiredRoomType: row.requiredRoomType?.toUpperCase() || undefined,
-          requiredCapabilities: row.requiredCapabilities ?? "",
           // Left as written; the schema's boolish reader understands "no", "0",
           // "inactive" and friends, and treats a blank cell as active.
           active: row.active,
@@ -274,7 +270,6 @@ export const SPECS: Record<ImportResource, Spec> = {
           : r.roomSelection === "ALLOWED_ROOMS"
           ? `${(r.allowedRooms ?? []).length} allowed`
           : r.requiredRoomType ?? "Auto",
-        Needs: (r.requiredCapabilities ?? []).join(", ") || "—",
       };
     },
   },

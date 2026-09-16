@@ -26,7 +26,6 @@ export default function SubjectsPage() {
             header: "Length",
             cell: (r) => <span className="font-mono text-micro tnum">{r.defaultDuration ?? 1}p</span>,
           },
-          { header: "Credits", cell: (r) => <span className="font-mono text-micro tnum">{r.credits}</span> },
         ],
         fields: [
           { name: "code", label: "Subject code", required: true, placeholder: "ECE281" },
@@ -45,7 +44,6 @@ export default function SubjectsPage() {
               { value: "3", label: "3 periods" },
             ],
           },
-          { name: "credits", label: "Credits", type: "number", defaultValue: 3 },
           { name: "active", label: "Offered this term", type: "toggle", defaultValue: true, full: true },
         ],
       }}

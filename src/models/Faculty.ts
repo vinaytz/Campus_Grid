@@ -8,7 +8,6 @@ export interface IFaculty {
   universityId?: Types.ObjectId;
   facultyId: string;   // "23314" — the institution's own uid
   name: string;        // "Praveen Malik"
-  email?: string;
   /** Optional: plenty of visiting//guest staff have no home department. */
   department?: string;
   designation?: string;
@@ -23,7 +22,6 @@ const FacultySchema = new Schema<IFaculty>(
     universityId: { type: Schema.Types.ObjectId, ref: "University", index: true },
     facultyId: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
-    email: { type: String, lowercase: true, trim: true },
     department: { type: String, trim: true, default: "" },
     designation: { type: String, trim: true },
     maxHoursPerWeek: { type: Number, default: 18 },

@@ -95,11 +95,11 @@ async function main() {
   ]);
 
   const subjects = await Subject.insertMany([
-    { ...tenant, code: "CSE101", name: "Programming Fundamentals", department: "Computer Science", type: "THEORY", defaultDuration: 1, credits: 4 },
-    { ...tenant, code: "CSE102", name: "Programming Laboratory", department: "Computer Science", type: "LAB", defaultDuration: 2, credits: 2 },
-    { ...tenant, code: "CSE201", name: "Data Structures", department: "Computer Science", type: "THEORY", defaultDuration: 1, credits: 4 },
-    { ...tenant, code: "MAT101", name: "Discrete Mathematics", department: "Mathematics", type: "THEORY", defaultDuration: 1, credits: 3 },
-    { ...tenant, code: "ECE110", name: "Digital Systems", department: "Electronics", type: "LAB", defaultDuration: 2, credits: 3 },
+    { ...tenant, code: "CSE101", name: "Programming Fundamentals", department: "Computer Science", type: "THEORY", defaultDuration: 1 },
+    { ...tenant, code: "CSE102", name: "Programming Laboratory", department: "Computer Science", type: "LAB", defaultDuration: 2 },
+    { ...tenant, code: "CSE201", name: "Data Structures", department: "Computer Science", type: "THEORY", defaultDuration: 1 },
+    { ...tenant, code: "MAT101", name: "Discrete Mathematics", department: "Mathematics", type: "THEORY", defaultDuration: 1 },
+    { ...tenant, code: "ECE110", name: "Digital Systems", department: "Electronics", type: "LAB", defaultDuration: 2 },
   ]);
 
   const sections = await Section.insertMany([
@@ -114,12 +114,12 @@ async function main() {
   const subjectId = (value: string) => byCode(subjects, "code", value);
 
   await Assignment.insertMany([
-    { ...tenant, section: sections[0]._id, subject: subjectId("CSE101"), faculty: facultyId("LPU-F001"), kind: "LECTURE", duration: 1, requiredSessions: 32, targetWeeklyFrequency: 3, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "CLASSROOM", requiredCapabilities: ["PROJECTOR"] },
-    { ...tenant, section: sections[0]._id, subject: subjectId("CSE102"), faculty: facultyId("LPU-F002"), kind: "LAB", duration: 2, requiredSessions: 16, targetWeeklyFrequency: 2, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "LAB", requiredCapabilities: ["COMPUTER"] },
-    { ...tenant, section: sections[0]._id, subject: subjectId("MAT101"), faculty: facultyId("LPU-F003"), kind: "LECTURE", duration: 1, requiredSessions: 24, targetWeeklyFrequency: 2, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "CLASSROOM", requiredCapabilities: [] },
-    { ...tenant, section: sections[1]._id, subject: subjectId("CSE201"), faculty: facultyId("LPU-F002"), kind: "LECTURE", duration: 1, requiredSessions: 32, targetWeeklyFrequency: 3, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "CLASSROOM", requiredCapabilities: ["PROJECTOR"] },
-    { ...tenant, section: sections[1]._id, subject: subjectId("ECE110"), faculty: facultyId("LPU-F004"), kind: "LAB", duration: 2, requiredSessions: 16, targetWeeklyFrequency: 2, roomSelection: "FIXED", fixedRoom: rooms[2]._id, allowedRooms: [], requiredRoomType: "LAB", requiredCapabilities: ["COMPUTER"] },
-    { ...tenant, section: sections[1]._id, subject: subjectId("MAT101"), faculty: facultyId("LPU-F003"), kind: "LECTURE", duration: 1, requiredSessions: 24, targetWeeklyFrequency: 2, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "CLASSROOM", requiredCapabilities: [] },
+    { ...tenant, section: sections[0]._id, subject: subjectId("CSE101"), faculty: facultyId("LPU-F001"), kind: "LECTURE", duration: 1, requiredSessions: 32, targetWeeklyFrequency: 3, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "CLASSROOM" },
+    { ...tenant, section: sections[0]._id, subject: subjectId("CSE102"), faculty: facultyId("LPU-F002"), kind: "LAB", duration: 2, requiredSessions: 16, targetWeeklyFrequency: 2, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "LAB" },
+    { ...tenant, section: sections[0]._id, subject: subjectId("MAT101"), faculty: facultyId("LPU-F003"), kind: "LECTURE", duration: 1, requiredSessions: 24, targetWeeklyFrequency: 2, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "CLASSROOM" },
+    { ...tenant, section: sections[1]._id, subject: subjectId("CSE201"), faculty: facultyId("LPU-F002"), kind: "LECTURE", duration: 1, requiredSessions: 32, targetWeeklyFrequency: 3, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "CLASSROOM" },
+    { ...tenant, section: sections[1]._id, subject: subjectId("ECE110"), faculty: facultyId("LPU-F004"), kind: "LAB", duration: 2, requiredSessions: 16, targetWeeklyFrequency: 2, roomSelection: "FIXED", fixedRoom: rooms[2]._id, allowedRooms: [], requiredRoomType: "LAB" },
+    { ...tenant, section: sections[1]._id, subject: subjectId("MAT101"), faculty: facultyId("LPU-F003"), kind: "LECTURE", duration: 1, requiredSessions: 24, targetWeeklyFrequency: 2, roomSelection: "AUTO", allowedRooms: [], requiredRoomType: "CLASSROOM" },
   ]);
 
   console.log(`Seeded ${university.name} (${university.code}) for ${email}: 4 faculty, 5 subjects, 5 rooms, 2 sections, 6 assignments.`);
