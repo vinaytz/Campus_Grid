@@ -9,17 +9,71 @@ import Room from "@/models/Room";
 import University from "@/models/University";
 import { isValidObjectId } from "mongoose";
 import { ok, fail, handleError } from "@/lib/api";
+import { addDays, buildTeachingDays, daysBetween, weekdayOf } from "@/lib/scheduler/calendar";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * One teaching week of the semester, numbered the same way as the admin
+ * semester view: 7-day blocks counted from the first teaching day. Uses `week`
+ * when given, otherwise the week containing `date`, clamped to the semester.
+ */
+function resolveWeek(semester: any, weekParam: string | null, dateParam: string | null) {
+  if (!semester) return null;
+  try {
+    const weekdays: number[] = semester.teachingWeekdays ?? [1, 2, 3, 4, 5];
+    const exceptions: any[] = semester.exceptions ?? [];
+    const teachingDays = buildTeachingDays({
+      startDate: semester.startDate, endDate: semester.endDate, teachingWeekdays: weekdays, exceptions,
+    });
+    if (teachingDays.length === 0) return null;
+
+    const anchor = teachingDays[0].date;
+    const weeks = teachingDays[teachingDays.length - 1].week;
+    let week = Number(weekParam);
+    if (!weekParam || !Number.isInteger(week)) {
+      week = 1;
+      if (dateParam && ISO_DATE.test(dateParam)) {
+        try { week = Math.floor(daysBetween(anchor, dateParam) / 7) + 1; } catch { /* not a real date */ }
+      }
+    }
+    week = Math.min(weeks, Math.max(1, week));
+
+    const start = addDays(anchor, 7 * (week - 1));
+    const end = addDays(start, 6);
+    const teaching = new Set(teachingDays.map((d) => d.date));
+    const days: { date: string; weekday: number; teaching: boolean; note?: string }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(start, i);
+      const weekday = weekdayOf(date);
+      const isTeaching = teaching.has(date);
+      if (!isTeaching && !weekdays.includes(weekday)) continue;
+      let note: string | undefined;
+      if (!isTeaching) {
+        const blocked = exceptions.find((ex) =>
+          ex.kind !== "SPECIAL_WORKING" && ex.date <= date && date <= (ex.endDate || ex.date));
+        note = blocked?.label
+          ?? (date < semester.startDate || date > semester.endDate ? "Outside semester" : "No classes");
+      }
+      days.push({ date, weekday, teaching: isTeaching, note });
+    }
+    return { week, weeks, start, end, days };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The only unauthenticated read. Serves the published timetable filtered by one
  * of section / faculty / room.
  *
- * Two shapes come back: `entries` is the typical week (the recurring pattern),
- * and `sessions` are the real dated classes. A `from`/`to` range narrows the
- * dated list so the board never ships a whole semester to render one week.
+ * `entries` is the typical week (the recurring pattern). `sessions` are the real
+ * dated classes for ONE week (`week`, or the week containing `date`), so the
+ * board shows what actually happens — holidays, moves and extra classes included —
+ * without shipping the whole semester.
  */
 export async function GET(req: Request) {
   try {
@@ -29,8 +83,8 @@ export async function GET(req: Request) {
     const id = searchParams.get("id");
     const universitySlug = searchParams.get("university")?.trim().toLowerCase();
     const semesterId = searchParams.get("semester");
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
+    const weekParam = searchParams.get("week");
+    const dateParam = searchParams.get("date");
 
     if (!universitySlug) return fail("A university is required.", 400);
     if (semesterId && !isValidObjectId(semesterId)) return fail("Semester not found.", 404);
@@ -75,7 +129,7 @@ export async function GET(req: Request) {
     if (!timetable) {
       return ok({
         published: false, settings, slots, directory,
-        entries: [], sessions: [], semester: null, meta: null,
+        entries: [], sessions: [], semester: null, meta: null, calendar: null,
         university: { name: university.name, code: university.code, slug: university.slug ?? university.code.toLowerCase() },
         publishedSemesters: publishedTimetables.map((item: any) => ({
           id: item.semester?._id ? String(item.semester._id) : null,
@@ -100,8 +154,10 @@ export async function GET(req: Request) {
       entries = entries.filter((e: any) => String(e[field]?._id) === id);
       sessions = sessions.filter((s: any) => String(s[field]?._id) === id);
     }
-    if (from) sessions = sessions.filter((s: any) => s.date >= from);
-    if (to) sessions = sessions.filter((s: any) => s.date <= to);
+    const calendar = resolveWeek(semester, weekParam, dateParam);
+    if (calendar) {
+      sessions = sessions.filter((s: any) => s.date >= calendar.start && s.date <= calendar.end);
+    }
 
     sessions = [...sessions].sort(
       (a: any, b: any) => String(a.date).localeCompare(String(b.date)) || a.slotOrder - b.slotOrder
@@ -114,6 +170,7 @@ export async function GET(req: Request) {
       directory,
       entries,
       sessions,
+      calendar,
       semester: semester
         ? {
             name: semester.name,

@@ -314,7 +314,7 @@ export function SemesterView({
             <ChevronLeft className="size-3.5" />
           </Button>
           <span className="min-w-[7.5rem] text-center font-mono text-micro font-semibold uppercase tracking-[0.08em] tnum">
-            Week {week} of {weeks.length}
+            Week {week} of {weeks[weeks.length - 1] ?? 0}
           </span>
           <Button variant="ghost" size="sm" aria-label="Next week"
             disabled={week >= weeks[weeks.length - 1]}
