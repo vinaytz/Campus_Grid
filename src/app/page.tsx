@@ -35,7 +35,7 @@ export default function PublicDirectory() {
           </div>
           <div className="flex gap-2">
             <Link href="/login" className="rounded-md border border-white/15 px-3 py-2 font-mono text-[0.65rem] uppercase tracking-[0.1em] text-white/70 hover:bg-white/10 hover:text-white">University Admin</Link>
-            <Link href="/adminLogin" className="hidden items-center gap-1 rounded-md border border-white/15 px-3 py-2 font-mono text-[0.65rem] uppercase tracking-[0.1em] text-white/70 hover:bg-white/10 hover:text-white sm:inline-flex">Platform Admin <ArrowUpRight className="size-3" /></Link>
+            {/* <Link href="/adminLogin" className="hidden items-center gap-1 rounded-md border border-white/15 px-3 py-2 font-mono text-[0.65rem] uppercase tracking-[0.1em] text-white/70 hover:bg-white/10 hover:text-white sm:inline-flex">Platform Admin <ArrowUpRight className="size-3" /></Link> */}
           </div>
         </div>
       </header>

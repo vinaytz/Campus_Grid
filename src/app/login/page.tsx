@@ -84,12 +84,12 @@ export default function LoginPage() {
           <p className="mt-6 text-center text-[0.8125rem] text-muted lg:hidden">
             <Link href="/" className="transition-colors hover:text-ink">← Public board</Link>
           </p>
-          <p className="mt-4 text-center text-[0.8125rem] text-muted">
+          {/* <p className="mt-4 text-center text-[0.8125rem] text-muted">
             Platform Admin?{" "}
             <Link href="/adminLogin" className="font-medium text-ink underline underline-offset-2">
               Sign in here
             </Link>
-          </p>
+          </p> */}
         </div>
       </section>
     </main>
