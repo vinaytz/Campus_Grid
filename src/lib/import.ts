@@ -47,13 +47,34 @@ interface Spec {
   sample: (string | number)[][];
   /** Natural key used to tell an update from an insert. */
   keyOf: (row: any) => Record<string, unknown>;
-  /** Resolves human-readable references (codes, numbers) to ObjectIds. */
+  /** Columns the file must have, with the name shown to the admin. */
+  required?: Record<string, string>;
+  /**
+   * Resolves human-readable references (codes, numbers) to ObjectIds. Returns
+   * one entry per input row, `null` where the row failed, so row numbers stay
+   * aligned with the file.
+   */
   resolve?: (
     rows: Record<string, string>[],
     lookups: Lookups
-  ) => Promise<{ rows: Record<string, unknown>[]; issues: ImportIssue[] }>;
+  ) => Promise<{ rows: (Record<string, unknown> | null)[]; issues: ImportIssue[] }>;
+  duplicateMessage?: (firstRow: number) => string;
   describe: (row: any, lookups: Lookups) => Record<string, string>;
 }
+
+const SESSION_KINDS: Record<string, "LECTURE" | "LAB" | "TUTORIAL"> = {
+  lecture: "LECTURE", lec: "LECTURE", l: "LECTURE", theory: "LECTURE", th: "LECTURE", class: "LECTURE",
+  lab: "LAB", labs: "LAB", laboratory: "LAB", practical: "LAB", p: "LAB", pr: "LAB",
+  tutorial: "TUTORIAL", tut: "TUTORIAL", t: "TUTORIAL",
+};
+
+const ROOM_TYPES: Record<string, string> = {
+  classroom: "CLASSROOM", class: "CLASSROOM", lecture: "LECTURE", lecturehall: "LECTURE",
+  lab: "LAB", laboratory: "LAB", seminar: "SEMINAR", seminarhall: "SEMINAR",
+  auditorium: "AUDITORIUM",
+};
+
+const squash = (v: string) => v.trim().toLowerCase().replace(/[\s_\-.]+/g, "");
 
 interface Lookups {
   rooms: any[];
@@ -152,12 +173,21 @@ export const SPECS: Record<ImportResource, Spec> = {
     model: Assignment,
     schema: assignmentSchema,
     aliases: {
-      section: ["sectionnumber", "sectionno"],
-      subject: ["subjectcode", "coursecode"],
-      faculty: ["facultyid", "uid", "staffid"],
-      kind: ["sessionkind", "type"],
-      duration: ["periods", "hours", "sessionduration"],
-      requiredSessions: ["sessions", "totalsessions", "semestersessions", "requiredsession"],
+      section: ["sectionnumber", "sectionno", "sectioncode"],
+      subject: ["subjectcode", "coursecode", "subjectid"],
+      faculty: [
+        "facultyid", "facultyuid", "facultycode", "uid", "staffid", "employeeid", "empid",
+        "teacherid", "teacheruid",
+      ],
+      kind: ["sessionkind", "type", "sessiontype", "classtype"],
+      duration: [
+        "periods", "hours", "hrs", "sessionduration", "noofhrs", "noofhours",
+        "noofhrs/duration", "length",
+      ],
+      requiredSessions: [
+        "sessions", "totalsessions", "semestersessions", "requiredsession", "noofsessions",
+        "sessionspersemester", "totalclasses", "classes", "noofclasses",
+      ],
       targetWeeklyFrequency: ["perweek", "weekly", "sessionsperweek"],
       roomSelection: ["roommode", "roomselectionmode"],
       fixedRoom: ["room", "pinnedroom"],
@@ -175,6 +205,11 @@ export const SPECS: Record<ImportResource, Spec> = {
       ["2403", "ECE282", "23314", "LAB", 3, 13, 1, "ALLOWED_ROOMS", "", "B-301;B-302", "LAB", "yes"],
     ],
     keyOf: (r) => ({ section: r.section, subject: r.subject, kind: r.kind }),
+    required: {
+      section: "Section", subject: "Subject code", faculty: "Faculty ID", requiredSessions: "Required sessions",
+    },
+    duplicateMessage: (first) =>
+      `Same section, subject and type as row ${first}. A section can have only one teacher per subject and type.`,
 
     /**
      * Assignments are the only resource that references others. Admins write
@@ -192,16 +227,36 @@ export const SPECS: Record<ImportResource, Spec> = {
         roomByName.set(String(r.code).toLowerCase(), r);
       }
 
-      const out: Record<string, unknown>[] = [];
+      const out: (Record<string, unknown> | null)[] = [];
+      const missing = (value: string | undefined, empty: string, notFound: string) =>
+        value ? notFound : empty;
       rows.forEach((row, i) => {
         const n = i + 1;
+        const issuesBefore = issues.length;
         const section = sectionByNumber.get((row.section ?? "").toLowerCase());
         const subject = subjectByCode.get((row.subject ?? "").toLowerCase());
         const faculty = facultyByUid.get((row.faculty ?? "").toLowerCase());
 
-        if (!section) issues.push({ row: n, field: "section", message: `No section numbered "${row.section}".` });
-        if (!subject) issues.push({ row: n, field: "subject", message: `No subject with code "${row.subject}".` });
-        if (!faculty) issues.push({ row: n, field: "faculty", message: `No faculty member with ID "${row.faculty}".` });
+        if (!section) issues.push({ row: n, field: "section", message: missing(row.section,
+          "Section is empty.", `No section "${row.section}" exists. Add it on the Sections page first.`) });
+        if (!subject) issues.push({ row: n, field: "subject", message: missing(row.subject,
+          "Subject code is empty.", `No subject with code "${row.subject}" exists. Add it on the Subjects page first.`) });
+        if (!faculty) issues.push({ row: n, field: "faculty", message: missing(row.faculty,
+          "Faculty ID is empty.", `No faculty member with ID "${row.faculty}" exists. Add them on the Faculty page first.`) });
+
+        const kindText = (row.kind ?? "").trim();
+        const kind = kindText
+          ? SESSION_KINDS[squash(kindText)]
+          : subject?.type === "LAB" ? "LAB" : subject?.type === "TUTORIAL" ? "TUTORIAL" : "LECTURE";
+        if (!kind) {
+          issues.push({ row: n, field: "kind", message: `Type "${kindText}" isn't recognised. Use Lecture, Lab or Tutorial.` });
+        }
+
+        const roomTypeText = (row.requiredRoomType ?? "").trim();
+        const requiredRoomType = roomTypeText ? ROOM_TYPES[squash(roomTypeText)] : undefined;
+        if (roomTypeText && !requiredRoomType) {
+          issues.push({ row: n, field: "requiredRoomType", message: `Room type "${roomTypeText}" isn't recognised. Use Classroom, Lecture, Lab, Seminar or Auditorium.` });
+        }
 
         let fixedRoom: string | undefined;
         if (row.fixedRoom) {
@@ -219,25 +274,28 @@ export const SPECS: Record<ImportResource, Spec> = {
           }
         }
 
-        if (!section || !subject || !faculty) return;
+        if (issues.length > issuesBefore || !section || !subject || !faculty) {
+          out.push(null);
+          return;
+        }
 
         // Infer the room mode from what the admin filled in, so the column is
         // optional in the sheet.
-        const mode = row.roomSelection?.toUpperCase()
+        const mode = row.roomSelection?.toUpperCase().replace(/[\s-]+/g, "_")
           || (fixedRoom ? "FIXED" : allowedRooms.length ? "ALLOWED_ROOMS" : "AUTO");
 
         out.push({
           section: String(section._id),
           subject: String(subject._id),
           faculty: String(faculty._id),
-          kind: (row.kind || (subject.type === "LAB" ? "LAB" : "LECTURE")).toUpperCase(),
+          kind,
           duration: row.duration || subject.defaultDuration || 1,
           requiredSessions: row.requiredSessions,
           targetWeeklyFrequency: row.targetWeeklyFrequency || null,
           roomSelection: mode,
           fixedRoom,
           allowedRooms,
-          requiredRoomType: row.requiredRoomType?.toUpperCase() || undefined,
+          requiredRoomType,
           // Left as written; the schema's boolish reader understands "no", "0",
           // "inactive" and friends, and treats a blank cell as active.
           active: row.active,
@@ -275,6 +333,14 @@ export const SPECS: Record<ImportResource, Spec> = {
   },
 };
 
+/** Zod's type errors are written for developers; say it the way an admin would. */
+function plainMessage(message: string) {
+  if (/expected number|received nan/i.test(message)) return "Must be a number.";
+  if (/invalid enum value/i.test(message)) return "Not a recognised value.";
+  if (/^required$/i.test(message)) return "This value is required.";
+  return message;
+}
+
 export function templateFor(resource: ImportResource) {
   const spec = SPECS[resource];
   return toCsv(spec.template, spec.sample);
@@ -303,6 +369,20 @@ export async function previewImport(
     };
   }
 
+  const missingColumns = Object.entries(spec.required ?? {})
+    .filter(([key]) => !(key in parsed.rows[0]))
+    .map(([, label]) => label);
+  if (missingColumns.length) {
+    return {
+      resource, headers: parsed.headers, unknownHeaders: parsed.unknown,
+      rows: [], display: [], created: 0, updated: 0, ok: false,
+      issues: [{
+        row: 0,
+        message: `Missing column${missingColumns.length === 1 ? "" : "s"}: ${missingColumns.join(", ")}. Download the template to see the expected headers.`,
+      }],
+    };
+  }
+
   const lookups: Lookups = {
     rooms: await Room.find(universityId ? { universityId } : {}).select("code block").lean(),
     faculty: await Faculty.find(universityId ? { universityId } : {}).select("facultyId name").lean(),
@@ -311,25 +391,26 @@ export async function previewImport(
   };
 
   // Resolve human-readable references first, where the resource needs it.
-  let candidates: Record<string, unknown>[] = parsed.rows;
+  let candidates: (Record<string, unknown> | null)[] = parsed.rows;
   if (spec.resolve) {
     const resolved = await spec.resolve(parsed.rows, lookups);
     candidates = resolved.rows;
     issues.push(...resolved.issues);
   }
 
-  // Schema validation, row by row.
+  // Schema validation, row by row. Index i always matches the file's row i + 1.
   const valid: Record<string, unknown>[] = [];
   const display: Record<string, string>[] = [];
-  const seenKeys = new Set<string>();
+  const firstRowByKey = new Map<string, number>();
 
   for (let i = 0; i < candidates.length; i++) {
     const raw = candidates[i];
+    if (!raw) continue;
 
     const result = spec.schema.safeParse(raw);
     if (!result.success) {
       for (const e of result.error.errors) {
-        issues.push({ row: i + 1, field: e.path.join("."), message: e.message });
+        issues.push({ row: i + 1, field: e.path.join("."), message: plainMessage(e.message) });
       }
       continue;
     }
@@ -337,11 +418,15 @@ export async function previewImport(
     // Duplicate natural keys inside the same file would silently overwrite each
     // other on commit, so they are rejected up front.
     const key = JSON.stringify(spec.keyOf(result.data));
-    if (seenKeys.has(key)) {
-      issues.push({ row: i + 1, message: "This row duplicates an earlier row in the same file." });
+    const first = firstRowByKey.get(key);
+    if (first !== undefined) {
+      issues.push({
+        row: i + 1,
+        message: spec.duplicateMessage?.(first) ?? `Repeats row ${first}. Each record can appear only once in a file.`,
+      });
       continue;
     }
-    seenKeys.add(key);
+    firstRowByKey.set(key, i + 1);
 
     valid.push(result.data);
     // Describe the PARSED row, never the raw text: a capabilities cell is a

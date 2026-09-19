@@ -1,5 +1,5 @@
 import { connectAndRegister } from "@/lib/db";
-import { getResource } from "@/lib/resources";
+import { getResource, assignmentClash } from "@/lib/resources";
 import { requireUniversityAdmin } from "@/lib/auth";
 import { tenantFilter } from "@/lib/tenant";
 import { ok, fail, handleError, parseBody } from "@/lib/api";
@@ -25,6 +25,10 @@ export async function PUT(req: Request, { params }: Ctx) {
         return start < b && end > a;
       });
       if (overlap) return fail(`Period overlaps with ${overlap.start}–${overlap.end}.`, 409);
+    }
+    if (resource === "assignments") {
+      const clash = await assignmentClash(session.universityId!, body, id);
+      if (clash) return fail(clash, 409);
     }
     const updated = await def.model.findOneAndUpdate({ _id: id, universityId: session.universityId }, {
       ...body, universityId: session.universityId,

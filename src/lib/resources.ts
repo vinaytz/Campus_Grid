@@ -77,6 +77,29 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
 };
 
+const KIND_LABEL: Record<string, string> = { LECTURE: "Lecture", LAB: "Lab", TUTORIAL: "Tutorial" };
+
+/**
+ * A section can have one teaching assignment per subject and type. Returns a
+ * plain-English explanation when `body` would repeat one, otherwise null.
+ */
+export async function assignmentClash(
+  universityId: string,
+  body: { section: string; subject: string; kind: string },
+  excludeId?: string
+): Promise<string | null> {
+  const existing = await Assignment.findOne({
+    universityId, section: body.section, subject: body.subject, kind: body.kind,
+    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+  })
+    .populate("section", "number").populate("subject", "code").populate("faculty", "name")
+    .lean<any>();
+  if (!existing) return null;
+  const kind = KIND_LABEL[body.kind] ?? body.kind;
+  return `Section ${existing.section?.number ?? "?"} already has ${existing.subject?.code ?? "this subject"} (${kind}), ` +
+    `taught by ${existing.faculty?.name ?? "another teacher"}. A section can have only one teacher per subject and type — edit that assignment instead.`;
+}
+
 export function getResource(name: string) {
   const def = RESOURCES[name];
   if (!def) {

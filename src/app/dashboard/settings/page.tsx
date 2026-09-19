@@ -4,6 +4,7 @@ import { api, useResource } from "@/hooks/useApi";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Input, Toggle } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { DAY_NAMES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -43,8 +44,25 @@ export default function SettingsPage() {
   const { data } = useResource<Settings>("/api/settings");
   const [form, setForm] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetText, setResetText] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => { if (data) setForm(data); }, [data]);
+
+  async function resetData() {
+    setResetting(true);
+    try {
+      await api("/api/reset", { method: "POST", json: { confirm: resetText } });
+      push("All university data deleted. Periods and scheduling rules were kept.");
+      setResetOpen(false);
+      setResetText("");
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setResetting(false);
+    }
+  }
 
   if (!form) return <div className="h-1 w-32 overflow-hidden rounded-full bg-ink/10"><div className="sweeping h-full w-full animate-sweep rounded-full" /></div>;
 
@@ -194,7 +212,35 @@ export default function SettingsPage() {
             ))}
           </div>
         </section>
+
+        <section className="rounded-md border border-claret-line bg-sheet p-4 shadow-hair lg:col-span-2">
+          <p className="label mb-1 text-claret">Danger zone</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-2xl text-[0.8125rem] text-muted">
+              Delete all rooms, faculty, subjects, sections, teaching assignments, semesters and
+              timetables for this university. Periods, scheduling rules and your login are kept.
+              This cannot be undone.
+            </p>
+            <Button variant="danger" size="sm" onClick={() => setResetOpen(true)}>Delete all data</Button>
+          </div>
+        </section>
       </div>
+
+      <Modal
+        open={resetOpen}
+        onClose={() => { if (!resetting) { setResetOpen(false); setResetText(""); } }}
+        title="Delete all university data?"
+        description="Rooms, faculty, subjects, sections, teaching assignments, semesters and timetables will be permanently deleted. Periods and scheduling rules stay."
+        footer={<>
+          <Button variant="ghost" onClick={() => { setResetOpen(false); setResetText(""); }} disabled={resetting}>Cancel</Button>
+          <Button variant="danger" onClick={resetData} loading={resetting} disabled={resetText !== "DELETE"}>
+            Delete everything
+          </Button>
+        </>}
+      >
+        <Input label='Type DELETE to confirm' value={resetText}
+          onChange={(e) => setResetText(e.target.value)} placeholder="DELETE" autoComplete="off" />
+      </Modal>
     </>
   );
 }
