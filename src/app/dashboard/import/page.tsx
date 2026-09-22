@@ -9,7 +9,7 @@ import { Table, TH, TD } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 
-type Resource = "rooms" | "faculty" | "subjects" | "sections" | "assignments";
+type Resource = "rooms" | "faculty" | "subjects" | "sections" | "slots" | "assignments";
 
 type Preview = {
   resource: Resource;
@@ -28,6 +28,7 @@ const RESOURCES: { value: Resource; label: string; hint: string }[] = [
   { value: "faculty", label: "Faculty", hint: "ID, name, department, daily cap" },
   { value: "subjects", label: "Subjects", hint: "code, name, type, default length" },
   { value: "sections", label: "Sections", hint: "number, program, semester, strength" },
+  { value: "slots", label: "Periods", hint: "order, label, start, end, class or break" },
   { value: "assignments", label: "Teaching Assignment", hint: "section, subject, faculty, required sessions" },
 ];
 
@@ -91,7 +92,7 @@ export default function ImportPage() {
       <PageHeader
         eyebrow="Master data"
         title="Bulk import"
-        description="Load rooms, faculty, subjects, sections or Teaching Assignment from a spreadsheet. Everything is checked and shown to you before anything is written."
+        description="Load rooms, faculty, subjects, sections, periods or Teaching Assignment from a spreadsheet. Everything is checked and shown to you before anything is written."
         action={
           <a href={`/api/import?resource=${resource}`} download>
             <Button variant="secondary" size="sm">

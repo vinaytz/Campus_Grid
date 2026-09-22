@@ -5,7 +5,7 @@ import { importCommitSchema } from "@/lib/validators";
 import { isMultipartContentType } from "@/lib/import-request";
 import { ok, fail, handleError, parseBody } from "@/lib/api";
 
-const RESOURCES = ["rooms", "faculty", "subjects", "sections", "assignments"] as const;
+const RESOURCES = ["rooms", "faculty", "subjects", "sections", "slots", "assignments"] as const;
 
 function resourceFrom(value: string | null): ImportResource {
   if (!value || !RESOURCES.includes(value as ImportResource)) {

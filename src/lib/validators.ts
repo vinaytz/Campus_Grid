@@ -250,6 +250,6 @@ export const extraSessionSchema = z.object({
 });
 
 export const importCommitSchema = z.object({
-  resource: z.enum(["rooms", "faculty", "subjects", "sections", "assignments"]),
+  resource: z.enum(["rooms", "faculty", "subjects", "sections", "slots", "assignments"]),
   rows: z.array(z.record(z.any())).min(1, "Nothing to import"),
 });

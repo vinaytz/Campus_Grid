@@ -11,13 +11,14 @@ import Faculty from "@/models/Faculty";
 import Subject from "@/models/Subject";
 import Section from "@/models/Section";
 import Assignment from "@/models/Assignment";
+import TimeSlot from "@/models/TimeSlot";
 import {
-  roomSchema, facultySchema, subjectSchema, sectionSchema, assignmentSchema,
+  roomSchema, facultySchema, subjectSchema, sectionSchema, assignmentSchema, timeSlotSchema,
 } from "./validators";
 import { parseRows, toCsv } from "./csv";
 import type { ZodSchema } from "zod";
 
-export type ImportResource = "rooms" | "faculty" | "subjects" | "sections" | "assignments";
+export type ImportResource = "rooms" | "faculty" | "subjects" | "sections" | "assignments" | "slots";
 
 export interface ImportIssue {
   row: number;          // 1-based, matching the spreadsheet body
@@ -74,13 +75,54 @@ const ROOM_TYPES: Record<string, string> = {
   auditorium: "AUDITORIUM",
 };
 
+const SLOT_KINDS: Record<string, "CLASS" | "BREAK"> = {
+  class: "CLASS", teaching: "CLASS", lecture: "CLASS", period: "CLASS", c: "CLASS",
+  break: "BREAK", lunch: "BREAK", recess: "BREAK", interval: "BREAK", b: "BREAK",
+  lunchbreak: "BREAK", assembly: "BREAK",
+};
+
 const squash = (v: string) => v.trim().toLowerCase().replace(/[\s_\-.]+/g, "");
+
+/**
+ * Reads a clock time the way a timetable is actually typed: "9", "9:00",
+ * "09.00", "0900", "9:00 AM", "1:30 pm", "09:00:00". Returns "HH:MM", or null
+ * when it isn't a time at all.
+ */
+function readTime(raw: string): string | null {
+  const text = raw.trim().toLowerCase();
+  if (!text) return null;
+  const pm = /p\.?m\.?$/.test(text);
+  const am = /a\.?m\.?$/.test(text);
+  const digits = text.replace(/[ap]\.?m\.?$/, "").trim().replace(/[.\s]/g, ":");
+
+  let hours: number;
+  let minutes: number;
+  const parts = /^(\d{1,2}):(\d{1,2})(?::\d{1,2})?$/.exec(digits);
+  const bare = /^(\d{1,4})$/.exec(digits);
+  if (parts) {
+    hours = Number(parts[1]);
+    minutes = Number(parts[2]);
+  } else if (bare) {
+    hours = bare[1].length > 2 ? Number(bare[1].slice(0, -2)) : Number(bare[1]);
+    minutes = bare[1].length > 2 ? Number(bare[1].slice(-2)) : 0;
+  } else {
+    return null;
+  }
+
+  if (pm && hours < 12) hours += 12;
+  if (am && hours === 12) hours = 0;
+  if (hours > 23 || minutes > 59) return null;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 
 interface Lookups {
   rooms: any[];
   faculty: any[];
   subjects: any[];
   sections: any[];
+  slots: any[];
 }
 
 export const SPECS: Record<ImportResource, Spec> = {
@@ -166,6 +208,120 @@ export const SPECS: Record<ImportResource, Spec> = {
     describe: (r) => ({
       Section: r.number, Program: r.program,
       Semester: String(r.semester), Students: String(r.strength),
+    }),
+  },
+
+  slots: {
+    model: TimeSlot,
+    schema: timeSlotSchema,
+    aliases: {
+      order: ["periodno", "periodnumber", "no", "sno", "serial", "sequence", "position", "slot", "slotno", "period"],
+      label: ["name", "periodname", "periodlabel", "slotname", "title"],
+      start: ["starttime", "from", "begin", "begins", "begintime", "startsat", "fromtime"],
+      end: ["endtime", "to", "finish", "finishes", "finishtime", "endsat", "totime"],
+      kind: ["type", "slottype", "periodtype", "category"],
+      active: ["enabled", "inuse"],
+    },
+    template: ["order", "label", "start", "end", "kind", "active"],
+    sample: [
+      [1, "Period 1", "09:00", "09:50", "CLASS", "yes"],
+      [2, "Period 2", "10:00", "10:50", "CLASS", "yes"],
+      [3, "Lunch", "13:00", "13:40", "BREAK", "yes"],
+    ],
+    keyOf: (r) => ({ order: r.order }),
+    required: { start: "Start time", end: "End time" },
+    duplicateMessage: (first) =>
+      `Same order number as row ${first}. Each period needs its own order number.`,
+
+    /**
+     * Periods are written the way a bell schedule is read — "9:00 AM", "Lunch",
+     * blank order numbers — so the text is normalised here, and overlapping
+     * times are caught before anything is written. Two periods that overlap
+     * would make the scheduler place two classes on a section at once.
+     */
+    async resolve(rows, lookups) {
+      const issues: ImportIssue[] = [];
+      const out: (Record<string, unknown> | null)[] = [];
+      const placed: { row: number; order: number; start: number; end: number; text: string }[] = [];
+      // Orders this file will overwrite; a saved period at one of them is being
+      // replaced, so it can't be an overlap.
+      const replaced = new Set(rows.map((r, j) => {
+        const text = (r.order ?? "").trim();
+        return text === "" ? j + 1 : Number(text);
+      }));
+
+      rows.forEach((row, i) => {
+        const n = i + 1;
+        const issuesBefore = issues.length;
+
+        const orderText = (row.order ?? "").trim();
+        const order = orderText === "" ? n : Number(orderText);
+        if (!Number.isInteger(order) || order < 0) {
+          issues.push({ row: n, field: "order", message: `Order "${orderText}" must be a whole number like 1, 2, 3.` });
+        }
+
+        const start = readTime(row.start ?? "");
+        const end = readTime(row.end ?? "");
+        if (!start) issues.push({ row: n, field: "start", message: row.start?.trim()
+          ? `Start time "${row.start}" isn't a time. Write it like 09:00.` : "Start time is empty." });
+        if (!end) issues.push({ row: n, field: "end", message: row.end?.trim()
+          ? `End time "${row.end}" isn't a time. Write it like 09:50.` : "End time is empty." });
+        if (start && end && minutesOf(start) >= minutesOf(end)) {
+          issues.push({ row: n, field: "end", message: `The period ends at ${end}, before it starts at ${start}.` });
+        }
+
+        const kindText = (row.kind ?? "").trim();
+        const kind = kindText ? SLOT_KINDS[squash(kindText)] : "CLASS";
+        if (!kind) {
+          issues.push({ row: n, field: "kind", message: `Type "${kindText}" isn't recognised. Use Class or Break.` });
+        }
+
+        if (issues.length > issuesBefore || !start || !end) {
+          out.push(null);
+          return;
+        }
+
+        // Overlaps, first against earlier rows of this file, then against the
+        // periods already saved — skipping any the file is about to replace.
+        const from = minutesOf(start);
+        const to = minutesOf(end);
+        const clash = placed.find((p) => p.order !== order && from < p.end && to > p.start);
+        if (clash) {
+          issues.push({ row: n, message: `Overlaps row ${clash.row} (${clash.text}). Two periods can't run at the same time.` });
+          out.push(null);
+          return;
+        }
+        placed.push({ row: n, order, start: from, end: to, text: `${start}–${end}` });
+
+        const existing = lookups.slots.find((s) =>
+          !replaced.has(s.order) && from < minutesOf(s.end) && to > minutesOf(s.start));
+        if (existing) {
+          issues.push({
+            row: n,
+            message: `Overlaps the saved period "${existing.label}" (${existing.start}–${existing.end}). Change the times, or delete that period on the Periods page first.`,
+          });
+          out.push(null);
+          return;
+        }
+
+        out.push({
+          order,
+          label: (row.label ?? "").trim() || (kind === "BREAK" ? "Break" : `Period ${order}`),
+          start,
+          end,
+          kind,
+          active: row.active,
+        });
+      });
+
+      return { rows: out, issues };
+    },
+
+    describe: (r) => ({
+      Order: String(r.order),
+      Label: r.label,
+      Time: `${r.start} – ${r.end}`,
+      Kind: r.kind === "BREAK" ? "Break" : "Teaching period",
     }),
   },
 
@@ -388,6 +544,7 @@ export async function previewImport(
     faculty: await Faculty.find(universityId ? { universityId } : {}).select("facultyId name").lean(),
     subjects: await Subject.find(universityId ? { universityId } : {}).select("code type defaultDuration").lean(),
     sections: await Section.find(universityId ? { universityId } : {}).select("number").lean(),
+    slots: await TimeSlot.find(universityId ? { universityId } : {}).select("label start end order").lean(),
   };
 
   // Resolve human-readable references first, where the resource needs it.
